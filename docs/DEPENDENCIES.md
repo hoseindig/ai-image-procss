@@ -1,4 +1,4 @@
-# Dependencies (Phase 6)
+# Dependencies (Phase 7A)
 
 Python package versions are pinned in `backend/pyproject.toml`. Licenses below were taken from the projects’ official packaging metadata / repositories. This is not legal advice.
 
@@ -16,8 +16,8 @@ There are **no** cloud AI, telemetry, or paid API dependencies.
 | Pydantic | 2.13.4 | MIT | Request/response schemas |
 | pydantic-settings | 2.15.0 | MIT | Environment / `.env` settings |
 | python-dotenv | 1.2.2 | BSD-3-Clause | `.env` file loading used by pydantic-settings |
-| SQLAlchemy | 2.0.52 | MIT | ORM / engine (2.x APIs only) |
-| Alembic | 1.19.1 | MIT | Schema migrations |
+| SQLAlchemy | 2.0.52 | MIT | ORM / engine (2.x APIs only); Person + enrollment persistence |
+| Alembic | 1.19.1 | MIT | Schema migrations (`persons`, `enrollment_samples`) |
 | greenlet | (SQLAlchemy dependency) | MIT | SQLAlchemy 2 support |
 | NumPy | 2.5.2 | BSD-3-Clause | Frames, YuNet decode, coordinate mapping |
 | opencv-python | 5.0.0.93 | Apache-2.0 | USB `VideoCapture`, resize/pad, preview drawing |
@@ -39,7 +39,7 @@ All of the above were selected for **Python 3.13** on Windows 11 (primary tested
 | Ruff | 0.16.3 | MIT | Lint + format |
 | mypy | 2.3.1 | MIT | Static typing |
 
-## Explicitly not included (Phase 6)
+## Explicitly not included (Phase 7A)
 
 | Package | Reason |
 | --- | --- |

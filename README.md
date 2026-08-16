@@ -2,7 +2,7 @@
 
 Local, CPU-only face detection and recognition for a USB webcam. No cloud AI APIs and no paid services.
 
-This repository is being built in gated phases. **Phases 0–6 are implemented** (backend, USB camera, YuNet, tracking, quality/alignment, SFace embedding). Person recognition and the frontend are not in this phase.
+This repository is being built in gated phases. **Phases 0–7A are implemented** (backend, USB camera, YuNet, tracking, quality/alignment, SFace embedding, person enrollment / face gallery). Recognition matching and the frontend are not in this phase.
 
 
 
@@ -133,7 +133,8 @@ ruff format .
 | Face tracking (IoU) | Phase 4 (done) |
 | Face quality & alignment | Phase 5 (done) |
 | Face embedding (SFace) | Phase 6 (done) |
-| Registering a person / recognition | Phase 7+ |
+| Person enrollment / face gallery | Phase 7A (done) |
+| Recognition / Known vs Unknown | Phase 7B+ |
 | Frontend | Phase 9 |
 | Model download | Phases 3+6 (done; `scripts/download_models.py`) |
 | E2E tests | Phase 10 |
@@ -147,6 +148,7 @@ ruff format .
 - [Tracking](docs/TRACKING.md)
 - [Face quality & alignment](docs/FACE_QUALITY.md)
 - [Face embedding](docs/FACE_EMBEDDING.md)
+- [Person enrollment](docs/PERSON_ENROLLMENT.md)
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 
 ## Troubleshooting camera access / CPU tuning

@@ -1,9 +1,10 @@
 """SQLAlchemy models.
 
-Phase 1 has no application tables. Import new models here in later phases so
-Alembic autogenerate can discover them via `Base.metadata`.
+Import concrete models here so Alembic autogenerate discovers them via
+``Base.metadata``.
 """
 
 from app.db.base import Base
+from app.models.person import EnrollmentSample, Person
 
-__all__ = ["Base"]
+__all__ = ["Base", "EnrollmentSample", "Person"]

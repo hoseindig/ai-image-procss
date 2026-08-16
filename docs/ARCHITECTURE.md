@@ -1,8 +1,8 @@
-# Architecture (Phase 6)
+# Architecture (Phase 7A)
 
-Phase 6 adds SFace embedding after quality-accepted alignment. Recognition, person IDs, and the frontend are still absent.
+Phase 7A adds persistent **Person** records and an embedding **gallery**. Recognition / matching are still absent.
 
-## Runtime (current)
+## Runtime (vision)
 
 ```text
 USB Webcam
@@ -18,7 +18,16 @@ USB Webcam
     → visualization / REST metadata
 ```
 
-Application code depends on `FaceEmbedder`, not ONNX Runtime.
+## Persistence (enrollment)
+
+```text
+Validated FaceEmbedding + quality.accepted
+    → EnrollmentService
+    → SQLite enrollment_samples (binary float32 blob)
+PersonService → SQLite persons (UUID Person ID)
+```
+
+Application enrollment code does **not** call ONNX Runtime directly. Track ID is optional tracing metadata on a sample — never a Person ID.
 
 ## Latest-frame scheduling
 
@@ -37,12 +46,15 @@ No unbounded queues. One SFace session is loaded once and reused.
 | Method | Path | Role |
 | --- | --- | --- |
 | GET | `/api/cameras/{id}/detections` | faces, tracks, quality, embedding **metadata** |
+| POST/GET/PATCH/DELETE | `/api/persons…` | person CRUD + soft deactivate |
+| POST/GET/DELETE | `/api/persons/{id}/enrollments…` | gallery samples (POST accepts vector; GET does not return it) |
 
-Raw embedding vectors are not exposed on the normal API.
+Raw embedding vectors are not exposed on normal GET APIs.
 
 ## Docs
 
-- `docs/FACE_EMBEDDING.md` — model, preprocessing, privacy
+- `docs/PERSON_ENROLLMENT.md` — schema, storage format, privacy, backup
+- `docs/FACE_EMBEDDING.md` — model, preprocessing
 - `docs/FACE_QUALITY.md` — quality / alignment
 - `docs/TRACKING.md` — Track ID semantics
 - `docs/MODELS.md` — licenses and checksums

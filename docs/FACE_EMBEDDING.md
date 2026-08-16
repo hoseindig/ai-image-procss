@@ -97,7 +97,7 @@ Face embeddings are biometric identifiers. Do not log raw vectors, upload them, 
 
 ## Known limitations
 
-- No identity matching or enrollment in this phase.
+- No identity matching in Phase 6; gallery persistence is Phase 7A (`docs/PERSON_ENROLLMENT.md`).
 - Embedding quality depends on Phase 5 gates (size, blur, lighting, landmarks).
 - Extreme pose / occlusion can produce embeddings that would fail future matching.
 - Linux is documented; primary measured environment in this repo is Windows 11 CPU.

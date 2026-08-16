@@ -72,6 +72,7 @@ Do not add the `insightface` package.
 
 | Topic | When |
 | --- | --- |
-| Person enrollment / matching | Phase 7+ |
+| Person enrollment / gallery | Phase 7A |
+| Recognition / matching | Phase 7B+ |
 | GPU / CUDA EP | Out of scope for v1 |
 | SFace INT8 | Only after measurement |

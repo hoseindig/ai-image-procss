@@ -1,6 +1,8 @@
-# Setup (Phase 6)
+# Setup (Phase 7A)
 
-Phase 6 runs the FastAPI backend with USB webcam capture, YuNet detection, IoU tracking, face quality/alignment, and SFace embedding on CPU. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the model files are installed.
+Phase 7A runs the FastAPI backend with USB webcam capture, YuNet detection, IoU tracking, face quality/alignment, SFace embedding, and **SQLite person enrollment / face gallery**. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the model files are installed.
+
+Automated tests **do not** need a physical webcam. A fake camera and a fake detector are used instead. Tests that need the real ONNX file are skipped if it is not present.
 
 **Tested environment:** Windows 11, Python 3.13, Intel i7-13700H, CPU only.  
 **Also documented:** Ubuntu LTS (Linux) with the same Python/venv workflow — Linux hardware latency has not been measured in this repository.
@@ -137,18 +139,28 @@ From `backend/` with the virtualenv active:
 alembic upgrade head
 ```
 
-Phase 1’s initial revision does not create application tables yet; it records Alembic history and creates the SQLite file.
+Revision `0002_person_enrollment` creates `persons` and `enrollment_samples`. See `docs/PERSON_ENROLLMENT.md`.
 
 Useful commands:
 
 ```powershell
 alembic current
-alembic downgrade base
+alembic downgrade 0001_initial
 alembic upgrade head
 alembic history
 ```
 
 The SQLite parent directory (`data/`) is created automatically if it is missing.
+
+### SQLite backup
+
+Stop the app before a simple file copy, or use:
+
+```powershell
+sqlite3 data\app.db ".backup 'data\app-backup.db'"
+```
+
+Details: `docs/PERSON_ENROLLMENT.md`.
 
 ## Start the backend
 
@@ -252,17 +264,18 @@ Requested resolution/FPS are hints. The printed “actual” size is what the dr
 
 `GET /api/system/status` `camera.available` means a camera is **registered** and not in an error state. It does not open the device. A real open happens only on `POST /api/cameras/{id}/start` or `scripts/test_webcam.py`.
 
-## Development flow (Phase 6)
+## Development flow (Phase 7A)
 
 1. Create/activate `backend/.venv` (Windows PowerShell or Linux bash)
 2. `pip install -e ".[dev]"`
 3. Copy `.env.example` to `.env`
 4. From the project root: `python scripts/download_models.py`
-5. `alembic upgrade head`
+5. `alembic upgrade head` (creates `persons` / `enrollment_samples`)
 6. `pytest`, `ruff check .`, `ruff format --check .`, `mypy .`
 7. `python -m app`
-8. Optional: `scripts/test_webcam.py --show-embedding`
-9. Optional: `scripts/benchmark_face_embedding.py`
+8. Optional: create a person via `POST /api/persons` (see `docs/PERSON_ENROLLMENT.md`)
+9. Optional: `scripts/test_webcam.py --show-embedding`
+10. Optional: `scripts/benchmark_face_embedding.py`
 
 ## Lint
 
