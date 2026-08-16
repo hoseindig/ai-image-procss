@@ -6,19 +6,32 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import CameraManagerDep
+from app.api.deps import CameraManagerDep, DetectionRuntimeDep
 from app.cameras.types import CameraStatus
 from app.schemas.camera import CameraListResponse
+from app.schemas.detection import DetectionResponse
 from app.services.camera import CameraService
+from app.services.detection import DetectionService
 
 router = APIRouter(prefix="/cameras", tags=["cameras"])
 
 
-def get_camera_service(manager: CameraManagerDep) -> CameraService:
-    return CameraService(manager)
+def get_camera_service(
+    manager: CameraManagerDep,
+    runtime: DetectionRuntimeDep,
+) -> CameraService:
+    return CameraService(manager, runtime)
+
+
+def get_detection_service(
+    manager: CameraManagerDep,
+    runtime: DetectionRuntimeDep,
+) -> DetectionService:
+    return DetectionService(manager, runtime)
 
 
 CameraServiceDep = Annotated[CameraService, Depends(get_camera_service)]
+DetectionServiceDep = Annotated[DetectionService, Depends(get_detection_service)]
 
 
 @router.get("")
@@ -39,3 +52,8 @@ def start_camera(camera_id: str, service: CameraServiceDep) -> CameraStatus:
 @router.post("/{camera_id}/stop")
 def stop_camera(camera_id: str, service: CameraServiceDep) -> CameraStatus:
     return service.stop_camera(camera_id)
+
+
+@router.get("/{camera_id}/detections")
+def get_detections(camera_id: str, service: DetectionServiceDep) -> DetectionResponse:
+    return service.get_detections(camera_id)

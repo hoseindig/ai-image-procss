@@ -2,7 +2,7 @@
 
 Local, CPU-only face detection and recognition for a USB webcam. No cloud AI APIs and no paid services.
 
-This repository is being built in gated phases. **Phase 1 (backend foundation) and Phase 2 (USB camera abstraction) are implemented.** Models and the frontend are not in this phase.
+This repository is being built in gated phases. **Phases 0–3 are implemented** (backend foundation, USB camera, YuNet face detection). Recognition and the frontend are not in this phase.
 
 See `docs/IMPLEMENTATION_PLAN.md` for the full roadmap.
 
@@ -10,8 +10,9 @@ See `docs/IMPLEMENTATION_PLAN.md` for the full roadmap.
 
 - Windows 11 (primary target)
 - Python 3.13
-- Node.js 24+ (needed from Phase 5/9; not required for Phase 1)
-- One USB webcam (Phase 2 smoke test / live capture)
+- Node.js 24+ (needed from Phase 5/9; not required for Phase 3)
+- One USB webcam (live capture / smoke test)
+- YuNet ONNX file (see `docs/MODELS.md`; download once, then offline)
 - Intel Core i7-class CPU, 16 GB RAM, no GPU required
 
 ## Phase 1 — Backend foundation
@@ -35,7 +36,17 @@ cd ..
 copy .env.example .env
 ```
 
-Edit `.env` if you need non-default host, port, or database path. Do not commit `.env`.
+Edit `.env` if you need non-default host, port, camera index, or detection settings. Do not commit `.env`.
+
+### YuNet model
+
+From the **project root** (once; requires internet):
+
+```powershell
+python scripts/download_models.py
+```
+
+The app does not download models at startup. See `docs/MODELS.md`.
 
 ### Database setup
 
@@ -66,17 +77,24 @@ Then open:
 - http://127.0.0.1:8000/api/health
 - http://127.0.0.1:8000/api/system/status
 - http://127.0.0.1:8000/api/cameras
+- http://127.0.0.1:8000/api/cameras/default/detections
 - http://127.0.0.1:8000/docs
 
 ### USB webcam smoke test
 
-From `backend/` (requires a physical webcam; not part of pytest):
+From `backend/` (requires a physical webcam and the YuNet file; not part of pytest):
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/test_webcam.py
 ```
 
-Press Q to quit. See `docs/SETUP.md` for device index, Windows privacy, and “camera in use” issues.
+Press Q to quit. Boxes and landmarks are drawn on the preview. Use `--no-detect` for camera-only. See `docs/SETUP.md` for device index, Windows privacy, and “camera in use” issues.
+
+CPU baseline (no webcam):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/benchmark_face_detection.py
+```
 
 ### Tests, lint, type checks
 
@@ -100,9 +118,10 @@ ruff format .
 | Topic | Status |
 | --- | --- |
 | Selecting a webcam | Phase 2 (done) |
+| Face detection (YuNet) | Phase 3 (done) |
 | Registering a person / recognition | Phases 5–6 |
 | Frontend | Phase 9 |
-| Model download | Phase 3 |
+| Model download | Phase 3 (done; `scripts/download_models.py`) |
 | E2E tests | Phase 10 |
 
 ## Documentation
@@ -110,6 +129,7 @@ ruff format .
 - [Setup](docs/SETUP.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Dependencies](docs/DEPENDENCIES.md)
+- [Models](docs/MODELS.md)
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 
 ## Troubleshooting camera access / CPU tuning

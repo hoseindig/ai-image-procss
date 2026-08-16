@@ -15,15 +15,21 @@ from app.core.config import Settings, load_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import get_logger, setup_logging
 from app.db.session import Database
+from app.vision.detector import FaceDetector
+from app.vision.factory import create_face_detector
+from app.vision.runtime import DetectionRuntime
 
 
 def create_app(
     settings: Settings | None = None,
     camera_manager: CameraManager | None = None,
+    face_detector: FaceDetector | None = None,
 ) -> FastAPI:
     """Build the FastAPI application.
 
     Tests pass an explicit Settings instance. Production uses `load_settings()`.
+    Pass `face_detector` to inject a fake detector; otherwise YuNet is loaded
+    during lifespan when face detection is enabled.
     """
     resolved = settings or load_settings()
     setup_logging(resolved.log_level)
@@ -35,14 +41,20 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        detector = face_detector
+        if detector is None and resolved.face_detection_enabled:
+            detector = create_face_detector(resolved)
+        runtime = DetectionRuntime(detector, resolved, manager)
         app.state.settings = resolved
         app.state.started_at = datetime.now(UTC)
         app.state.database = Database(resolved.database_url)
         app.state.camera_manager = manager
+        app.state.detection_runtime = runtime
         logger.info("Application started (%s)", resolved.app_env)
         try:
             yield
         finally:
+            runtime.shutdown()
             manager.shutdown()
             database = getattr(app.state, "database", None)
             if isinstance(database, Database):

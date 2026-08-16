@@ -68,3 +68,11 @@ def test_double_start_conflict(camera_client: TestClient) -> None:
 def test_stop_when_not_running(camera_client: TestClient) -> None:
     response = camera_client.post("/api/cameras/default/stop")
     assert response.status_code == 409
+
+
+def test_detections_when_disabled(camera_client: TestClient) -> None:
+    response = camera_client.get("/api/cameras/default/detections")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["enabled"] is False
+    assert body["faces"] == []

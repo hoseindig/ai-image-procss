@@ -1,16 +1,11 @@
-"""Manual USB webcam smoke test. Requires a physical camera.
+"""Manual USB webcam smoke test with YuNet overlay. Requires a physical camera.
 
 Run from the backend directory with the virtualenv Python:
 
     .\\.venv\\Scripts\\python.exe scripts/test_webcam.py
 
-Or activate the venv first:
-
-    .\\.venv\\Scripts\\Activate.ps1
-    python scripts/test_webcam.py
-
 Press Q in the preview window to exit. The camera is released on exit.
-Requested width/height/FPS are hints; the driver may choose different values.
+Face boxes are drawn by visualization code, not by the detector itself.
 """
 
 from __future__ import annotations
@@ -52,6 +47,10 @@ try:
     from app.cameras.usb import UsbCameraSource
     from app.core.config import load_settings
     from app.core.logging import setup_logging
+    from app.vision.exceptions import ModelNotFoundError, VisionError
+    from app.vision.factory import create_face_detector
+    from app.vision.types import FaceDetection
+    from app.vision.visualize import draw_detections
 except ModuleNotFoundError as exc:
     venv_python = _venv_python()
     print("Missing dependency while starting the webcam smoke test.", file=sys.stderr)
@@ -72,6 +71,11 @@ def main() -> int:
         "--frames", type=int, default=0, help="Capture N frames then exit (0 = until Q)"
     )
     parser.add_argument("--no-display", action="store_true", help="Do not open a preview window")
+    parser.add_argument(
+        "--no-detect",
+        action="store_true",
+        help="Skip YuNet overlay (camera-only, Phase 2 behavior)",
+    )
     args = parser.parse_args()
 
     settings = load_settings()
@@ -86,10 +90,25 @@ def main() -> int:
     if args.fps is not None:
         config = config.model_copy(update={"fps": args.fps})
 
+    detector = None
+    if not args.no_detect:
+        try:
+            detector = create_face_detector(settings)
+        except (ModelNotFoundError, VisionError) as exc:
+            message = exc.message if isinstance(exc, VisionError) else str(exc)
+            print(message, file=sys.stderr)
+            print("Install the model with: python scripts/download_models.py", file=sys.stderr)
+            print("Or pass --no-detect for a camera-only preview.", file=sys.stderr)
+            return 1
+
     source = UsbCameraSource(config)
     display = not args.no_display
     window = "webcam-smoke-test"
     captured = 0
+    detected_frames = 0
+    last_faces: list[FaceDetection] = []
+    last_detect_at = 0.0
+    interval_s = settings.face_detection_inference_interval_ms / 1000.0
     started = time.perf_counter()
     try:
         source.open()
@@ -99,6 +118,12 @@ def main() -> int:
             f"actual={status.width}x{status.height}@{status.fps:.1f} "
             f"(requested {config.width}x{config.height}@{config.fps})"
         )
+        if detector is not None:
+            print(
+                f"YuNet provider={detector.provider} "
+                f"input={detector.config.input_width}x{detector.config.input_height} "
+                f"interval_ms={settings.face_detection_inference_interval_ms}"
+            )
         source.start()
         if display:
             import cv2
@@ -110,21 +135,46 @@ def main() -> int:
                 time.sleep(0.01)
                 continue
             captured += 1
+            now = time.monotonic()
+            if detector is not None and now - last_detect_at >= interval_s:
+                last_faces = detector.detect(frame)
+                last_detect_at = now
+                detected_frames += 1
             elapsed = max(time.perf_counter() - started, 1e-6)
             fps = captured / elapsed
             if display:
                 import cv2
 
-                cv2.imshow(window, frame.data)
+                image = (
+                    draw_detections(frame.data, last_faces) if detector is not None else frame.data
+                )
+                overlay = f"fps={fps:.1f} faces={len(last_faces)} {frame.width}x{frame.height}"
+                cv2.putText(
+                    image,
+                    overlay,
+                    (8, 24),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
+                cv2.imshow(window, image)
                 key = cv2.waitKey(1) & 0xFF
                 if key in {ord("q"), ord("Q"), 27}:
                     break
             elif captured % 10 == 0:
-                print(f"frames={captured} fps={fps:.1f} size={frame.width}x{frame.height}")
+                print(
+                    f"frames={captured} fps={fps:.1f} size={frame.width}x{frame.height} "
+                    f"faces={len(last_faces)}"
+                )
             if args.frames > 0 and captured >= args.frames:
                 break
         elapsed = max(time.perf_counter() - started, 1e-6)
-        print(f"Captured {captured} frames, ~{captured / elapsed:.1f} FPS")
+        print(
+            f"Captured {captured} frames, ~{captured / elapsed:.1f} FPS, "
+            f"detection passes={detected_frames}"
+        )
         return 0
     except Exception as exc:
         print(f"Webcam smoke test failed: {exc}")

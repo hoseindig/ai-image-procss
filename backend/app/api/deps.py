@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.cameras.manager import CameraManager
 from app.core.config import Settings
 from app.db.session import Database
+from app.vision.runtime import DetectionRuntime
 
 
 def get_settings_dep(request: Request) -> Settings:
@@ -47,7 +48,15 @@ def get_camera_manager(request: Request) -> CameraManager:
     return manager
 
 
+def get_detection_runtime(request: Request) -> DetectionRuntime:
+    runtime = getattr(request.app.state, "detection_runtime", None)
+    if not isinstance(runtime, DetectionRuntime):
+        raise RuntimeError("Detection runtime is not initialized")
+    return runtime
+
+
 SettingsDep = Annotated[Settings, Depends(get_settings_dep)]
 SessionDep = Annotated[Session, Depends(get_session)]
 StartedAtDep = Annotated[datetime, Depends(get_started_at)]
 CameraManagerDep = Annotated[CameraManager, Depends(get_camera_manager)]
+DetectionRuntimeDep = Annotated[DetectionRuntime, Depends(get_detection_runtime)]

@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import numpy as np
+from numpy.typing import NDArray
 
 from app.cameras.exceptions import (
     CameraAlreadyRunningError,
@@ -33,8 +34,12 @@ class FakeCameraSource:
         self._error: str | None = None
         self._last_frame_at: datetime | None = None
         self._frame: Frame | None = None
+        self._custom_data: NDArray[np.uint8] | None = None
         self.open_count = 0
         self.close_count = 0
+
+    def set_frame_data(self, data: NDArray[np.uint8]) -> None:
+        self._custom_data = data
 
     def open(self) -> None:
         if self._state in {CameraState.OPEN, CameraState.RUNNING, CameraState.STOPPED}:
@@ -107,10 +112,15 @@ class FakeCameraSource:
     def _make_frame(self) -> Frame:
         timestamp = datetime.now(UTC)
         self._last_frame_at = timestamp
-        data = np.zeros((self._config.height, self._config.width, 3), dtype=np.uint8)
+        if self._custom_data is not None:
+            data = np.ascontiguousarray(self._custom_data.copy())
+            height, width = int(data.shape[0]), int(data.shape[1])
+        else:
+            data = np.zeros((self._config.height, self._config.width, 3), dtype=np.uint8)
+            height, width = self._config.height, self._config.width
         return Frame(
             data=data,
             timestamp=timestamp,
-            width=self._config.width,
-            height=self._config.height,
+            width=width,
+            height=height,
         )

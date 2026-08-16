@@ -15,9 +15,11 @@ from app.core.logging import get_logger
 from app.schemas.health import (
     CameraHealthStatus,
     DatabaseStatus,
+    FaceDetectionHealthStatus,
     HealthResponse,
     SystemStatusResponse,
 )
+from app.vision.runtime import DetectionRuntime
 
 logger = get_logger("app")
 
@@ -32,7 +34,12 @@ class SystemStatusService:
         self._settings = settings
         self._started_at = started_at
 
-    def get_status(self, session: Session, camera_manager: CameraManager) -> SystemStatusResponse:
+    def get_status(
+        self,
+        session: Session,
+        camera_manager: CameraManager,
+        detection_runtime: DetectionRuntime,
+    ) -> SystemStatusResponse:
         connected = self._database_connected(session)
         available, running = camera_manager.summary()
         uptime = max((datetime.now(UTC) - self._started_at).total_seconds(), 0.0)
@@ -43,6 +50,12 @@ class SystemStatusService:
             uptime_seconds=round(uptime, 3),
             database=DatabaseStatus(connected=connected),
             camera=CameraHealthStatus(available=available, running=running),
+            face_detection=FaceDetectionHealthStatus(
+                enabled=detection_runtime.enabled,
+                model_loaded=detection_runtime.model_loaded,
+                provider=detection_runtime.provider,
+                last_inference_ms=detection_runtime.last_inference_ms(),
+            ),
         )
 
     def _database_connected(self, session: Session) -> bool:

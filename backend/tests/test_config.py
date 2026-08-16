@@ -50,3 +50,18 @@ def test_relative_sqlite_url_is_resolved_to_absolute() -> None:
 
 def test_memory_sqlite_url_is_unchanged() -> None:
     assert resolve_database_url("sqlite:///:memory:") == "sqlite:///:memory:"
+
+
+def test_face_detection_defaults() -> None:
+    settings = IsolatedSettings()
+    assert settings.face_detection_enabled is True
+    assert settings.face_detection_model_path == "models/face/yunet/2023mar.onnx"
+    assert settings.face_detection_confidence_threshold == 0.7
+    assert settings.face_detection_input_width == 640
+    assert settings.face_detection_input_height == 640
+    assert settings.face_detection_inference_interval_ms == 100
+
+
+def test_invalid_confidence_threshold_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        IsolatedSettings(face_detection_confidence_threshold=1.5)

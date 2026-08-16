@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.deps import CameraManagerDep, SessionDep, SettingsDep, StartedAtDep
+from app.api.deps import (
+    CameraManagerDep,
+    DetectionRuntimeDep,
+    SessionDep,
+    SettingsDep,
+    StartedAtDep,
+)
 from app.schemas.health import HealthResponse, SystemStatusResponse
 from app.services.system import HealthService, SystemStatusService
 
@@ -22,5 +28,8 @@ def get_system_status(
     started_at: StartedAtDep,
     session: SessionDep,
     camera_manager: CameraManagerDep,
+    detection_runtime: DetectionRuntimeDep,
 ) -> SystemStatusResponse:
-    return SystemStatusService(settings, started_at).get_status(session, camera_manager)
+    return SystemStatusService(settings, started_at).get_status(
+        session, camera_manager, detection_runtime
+    )

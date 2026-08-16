@@ -31,6 +31,14 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         "CAMERA_HEIGHT",
         "CAMERA_FPS",
         "CAMERA_BACKEND",
+        "FACE_DETECTION_ENABLED",
+        "FACE_DETECTION_MODEL_PATH",
+        "FACE_DETECTION_CONFIDENCE_THRESHOLD",
+        "FACE_DETECTION_NMS_THRESHOLD",
+        "FACE_DETECTION_INPUT_WIDTH",
+        "FACE_DETECTION_INPUT_HEIGHT",
+        "FACE_DETECTION_MAX_FACES",
+        "FACE_DETECTION_INFERENCE_INTERVAL_MS",
     ):
         monkeypatch.delenv(key, raising=False)
     database_path = tmp_path / "test.db"
@@ -43,6 +51,7 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         database_url=f"sqlite:///{database_path.as_posix()}",
         log_level="INFO",
         cors_origins=["http://localhost:3000"],
+        face_detection_enabled=False,
     )
 
 

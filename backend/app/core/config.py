@@ -82,6 +82,14 @@ class Settings(BaseSettings):
     camera_height: int = Field(default=720, ge=1)
     camera_fps: float = Field(default=15.0, gt=0)
     camera_backend: str = Field(default="dshow")
+    face_detection_enabled: bool = Field(default=True)
+    face_detection_model_path: str = Field(default="models/face/yunet/2023mar.onnx")
+    face_detection_confidence_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    face_detection_nms_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+    face_detection_input_width: int = Field(default=640, ge=32)
+    face_detection_input_height: int = Field(default=640, ge=32)
+    face_detection_max_faces: int = Field(default=10, ge=1)
+    face_detection_inference_interval_ms: int = Field(default=100, ge=1)
 
     @field_validator("app_env", mode="before")
     @classmethod

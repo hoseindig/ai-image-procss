@@ -1,8 +1,8 @@
-# Setup (Phase 2)
+# Setup (Phase 3)
 
-Phase 2 runs the FastAPI backend with USB webcam capture. It does not require AI models, Node.js, or internet after Python packages are installed.
+Phase 3 runs the FastAPI backend with USB webcam capture and **local YuNet face detection**. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the YuNet file are installed.
 
-Automated tests **do not** need a physical webcam. A fake camera implementation is used instead.
+Automated tests **do not** need a physical webcam. A fake camera and a fake detector are used instead. Tests that need the real ONNX file are skipped if it is not present.
 
 ## Prerequisites
 
@@ -72,8 +72,35 @@ Settings are loaded from, in order of precedence:
 | `CAMERA_HEIGHT` | `720` | **Requested** frame height; not guaranteed |
 | `CAMERA_FPS` | `15` | **Requested** FPS; not guaranteed |
 | `CAMERA_BACKEND` | `dshow` | Windows: `dshow`, `msmf`, or `any` |
+| `FACE_DETECTION_ENABLED` | `true` | Load YuNet at startup when true |
+| `FACE_DETECTION_MODEL_PATH` | `models/face/yunet/2023mar.onnx` | Relative paths resolve from the **project root** |
+| `FACE_DETECTION_CONFIDENCE_THRESHOLD` | `0.7` | YuNet detection-score cutoff (not a probability) |
+| `FACE_DETECTION_NMS_THRESHOLD` | `0.3` | IoU NMS; OpenCV FaceDetectorYN default |
+| `FACE_DETECTION_INPUT_WIDTH` | `640` | Must match the 2023mar ONNX graph |
+| `FACE_DETECTION_INPUT_HEIGHT` | `640` | Must match the 2023mar ONNX graph |
+| `FACE_DETECTION_MAX_FACES` | `10` | After NMS |
+| `FACE_DETECTION_INFERENCE_INTERVAL_MS` | `100` | Detection worker period; camera FPS can be higher |
 
 Do not commit `.env`.
+
+## YuNet model
+
+The application will **not** download the model. From the project root:
+
+```powershell
+python scripts/download_models.py
+```
+
+Expected path: `models/face/yunet/2023mar.onnx` (232,589 bytes, SHA-256 listed in `docs/MODELS.md`).
+
+If the file is missing and `FACE_DETECTION_ENABLED=true`, startup fails with:
+
+```text
+YuNet model not found:
+<project>\models\face\yunet\2023mar.onnx
+```
+
+After that install step, detection runs offline.
 
 ## Database migrations
 
@@ -126,6 +153,12 @@ Invoke-RestMethod http://127.0.0.1:8000/api/system/status
 
 Interactive docs: http://127.0.0.1:8000/docs
 
+Latest detections for the default camera (empty until start):
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/api/cameras/default/detections
+```
+
 ## Tests
 
 From `backend/`:
@@ -134,7 +167,7 @@ From `backend/`:
 pytest
 ```
 
-Tests use a temporary SQLite file and a fake camera. They do not need a physical webcam, network, or `data/app.db`.
+Tests use a temporary SQLite file and a fake camera. They do not need a physical webcam, network, or `data/app.db`. Tests that exercise the real YuNet file skip if `models/face/yunet/2023mar.onnx` is absent.
 
 ## USB webcam (manual)
 
@@ -155,7 +188,19 @@ Without activating the venv:
 
 Optional flags: `--index 1`, `--width 640`, `--height 480`, `--fps 15`, `--frames 30`, `--no-display`.
 
-The window shows the live feed. Press **Q** to exit. The script always releases the camera.
+The window shows the live feed with face boxes, detection confidence, and five landmarks. Press **Q** to exit. The script always releases the camera.
+
+Camera-only (no YuNet):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/test_webcam.py --no-detect
+```
+
+CPU baseline (blank frames, no webcam):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/benchmark_face_detection.py
+```
 
 Requested resolution/FPS are hints. The printed “actual” size is what the driver provided.
 
@@ -171,16 +216,18 @@ Requested resolution/FPS are hints. The printed “actual” size is what the dr
 
 `GET /api/system/status` `camera.available` means a camera is **registered** and not in an error state. It does not open the device. A real open happens only on `POST /api/cameras/{id}/start` or `scripts/test_webcam.py`.
 
-## Development flow (Phase 2)
+## Development flow (Phase 3)
 
 1. Create/activate `backend/.venv`
 2. `pip install -e ".[dev]"`
 3. Copy `.env.example` to `.env`
-4. `alembic upgrade head`
-5. `pytest`, `ruff check .`, `ruff format --check .`, `mypy .`
-6. `python -m app`
-7. Hit `/api/health`, `/api/system/status`, `/api/cameras`
-8. Optional: `.\.venv\Scripts\python.exe scripts/test_webcam.py`
+4. From the project root: `python scripts/download_models.py`
+5. `alembic upgrade head`
+6. `pytest`, `ruff check .`, `ruff format --check .`, `mypy .`
+7. `python -m app`
+8. Hit `/api/health`, `/api/system/status`, `/api/cameras`
+9. Optional: `.\.venv\Scripts\python.exe scripts/test_webcam.py`
+10. Optional: `.\.venv\Scripts\python.exe scripts/benchmark_face_detection.py`
 
 ## Lint
 
@@ -203,4 +250,4 @@ mypy .
 
 ## Offline use
 
-After the pip install step, the backend does not call the network. Model download (Phase 3) is not part of this phase.
+After `pip install` and `python scripts/download_models.py`, the backend does not call the network. Face detection does not upload frames.

@@ -1,80 +1,108 @@
-# Architecture (Phase 2)
+# Architecture (Phase 3)
 
-Phase 2 adds a camera abstraction and USB webcam capture. Face detection and recognition are still absent.
+Phase 3 adds CPU face detection on top of the Phase 2 camera pipeline. Face recognition, tracking, events, and the frontend are still absent.
 
 ## Runtime (current)
 
 ```text
-HTTP client
-    → FastAPI (uvicorn)
-        → thin API routes
-        → CameraService / SystemStatusService
-        → CameraManager (by camera_id)
-        → CameraSource (Protocol)
-              ├── UsbCameraSource   (OpenCV VideoCapture, production)
-              └── FakeCameraSource  (tests only)
-        → SQLite (unchanged from Phase 1)
+USB Webcam
+    → CameraSource (UsbCameraSource)
+    → CameraManager (latest-frame slot)
+    → DetectionWorker (interval, latest-result slot)
+    → FaceDetector
+          └── YuNetFaceDetector
+                └── InferenceEngine (OnnxRuntimeEngine, CPUExecutionProvider)
+    → FaceDetection (box + 5 landmarks + confidence)
+    → visualization (preview only; not part of the detector)
+    → REST (camera status + latest detections)
 ```
-
-OpenCV is imported only inside `app.cameras.usb`. Routes, services, and `CameraManager` never see `cv2.VideoCapture`.
-
-## Camera lifecycle
 
 ```text
-closed → open() → open → start() → running → stop() → stopped → close() → closed
+HTTP client
+    → FastAPI
+        → thin API routes
+        → CameraService / DetectionService / SystemStatusService
+        → CameraManager + DetectionRuntime
+        → FaceDetector (protocol)
+        → SQLite (unchanged)
 ```
 
-Invalid transitions raise domain errors (`CameraInvalidStateError`, `CameraAlreadyRunningError`, …). `close()` is idempotent and always releases the device.
+OpenCV is used for capture, resize/pad, and drawing. ONNX Runtime is the only inference backend. Routes never import `onnxruntime` or YuNet session objects.
 
-The HTTP API maps:
+## FaceDetector
 
-- `POST /start` → open (if needed) + start
-- `POST /stop` → stop + close (releases the Windows webcam handle)
+Application code depends on `FaceDetector`, not `YuNetFaceDetector`.
 
-## Capture design
+```text
+FaceDetector.detect(frame) → list[FaceDetection]
+```
 
-`UsbCameraSource` uses a **single dedicated capture thread** and a **size-1 latest-frame slot** (`LatestFrameSlot`).
+`FaceDetection` contains:
 
-- The thread is not a daemon; `stop()`/`close()` set an event and `join()` with a timeout.
-- A new frame **replaces** the previous one. There is no growing queue.
-- Stale frames are dropped on purpose so RAM cannot grow if a consumer is slow.
-- Successful frames are not logged.
+- `bounding_box` (`x`, `y`, `width`, `height`) in the **original frame**
+- `confidence` (YuNet detection score, not a probability)
+- `landmarks` (`left_eye`, `right_eye`, `nose`, `left_mouth`, `right_mouth`)
 
-Requested width/height/FPS are sent to the driver. If the webcam ignores them, capture continues with the **actual** values reported by OpenCV.
+`InferenceEngine` hides the ONNX session. `OnnxRuntimeEngine` requests `CPUExecutionProvider` explicitly and refuses to start if that provider is not active.
 
-On Windows the opener tries **DirectShow (`dshow`)** first, then **Media Foundation (`msmf`)**, then OpenCV’s default. Device indexes are not scanned.
+## Latest-frame scheduling
+
+There is still **no frame queue**.
+
+```text
+Camera thread  → LatestFrameSlot (size 1)
+Detection thread → polls newest frame on inference_interval_ms
+                 → LatestValueSlot[DetectionSnapshot] (size 1)
+```
+
+If inference is slower than the camera, older frames are skipped. The worker is not a daemon; shutdown stops the detection worker first, then the camera.
+
+## Coordinate mapping
+
+```text
+original BGR frame
+    → resize to configured input size
+    → pad bottom/right to a multiple of 32
+    → NCHW float32 blob (no mean/std normalization)
+    → YuNet
+    → decode + NMS in padded space
+    → scale back to original width/height
+```
+
+API coordinates always refer to the original frame, origin top-left.
 
 ## Layout
 
 ```text
 backend/
   app/
-    cameras/             # Protocol, USB source, manager, domain errors
+    cameras/             # Phase 2
+    vision/              # FaceDetector, YuNet, ONNX engine, worker
     api/routes/cameras.py
     services/camera.py
-  scripts/test_webcam.py # manual hardware smoke test
-  tests/fake_camera.py   # in-process CameraSource for automated tests
+    services/detection.py
+  scripts/test_webcam.py
+  scripts/benchmark_face_detection.py
+models/face/yunet/       # gitignored ONNX; SHA256SUMS is committed
+scripts/download_models.py
 ```
 
 ## Configuration
 
-Camera defaults live on the same `Settings` object as Phase 1 (`CAMERA_*` environment variables). There is no second config system and no camera table in SQLite.
+Face-detection settings live on the same `Settings` object (`FACE_DETECTION_*`). There is no second config system and no model download in the app process.
 
 ## API
 
 | Method | Path | Role |
 | --- | --- | --- |
-| GET | `/api/health` | Liveness (unchanged) |
-| GET | `/api/system/status` | Adds `camera.available` / `camera.running` (no hardware probe) |
-| GET | `/api/cameras` | Registered cameras and status |
+| GET | `/api/health` | Liveness |
+| GET | `/api/system/status` | Adds `face_detection` (enabled / model_loaded / provider / last_inference_ms) |
+| GET | `/api/cameras` | Registered cameras |
 | GET | `/api/cameras/{id}` | One camera |
-| POST | `/api/cameras/{id}/start` | Open + capture |
-| POST | `/api/cameras/{id}/stop` | Stop + release |
+| POST | `/api/cameras/{id}/start` | Open + capture + attach detection worker |
+| POST | `/api/cameras/{id}/stop` | Detach worker + stop + release |
+| GET | `/api/cameras/{id}/detections` | Latest boxes/landmarks (no image bytes) |
 
-`available` means a camera is registered and not in `error`. It does **not** mean a USB probe succeeded.
+Missing YuNet file: process startup fails with `YuNet model not found:` and the absolute path.
 
-## Future sources (not implemented)
-
-`SourceType` already includes `rtsp`, `file`, and `http`. `default_source_factory` only constructs `UsbCameraSource`. New implementations can follow the same `CameraSource` protocol without changing the manager or API shape.
-
-See `docs/IMPLEMENTATION_PLAN.md` for later phases.
+See `docs/MODELS.md` for license, SHA-256, and why the default input is 640×640.

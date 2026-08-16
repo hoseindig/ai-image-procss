@@ -9,6 +9,8 @@ from app.cameras.exceptions import CameraError
 from app.cameras.http import camera_error_http_status
 from app.core.config import Settings
 from app.core.logging import get_logger
+from app.vision.exceptions import VisionError
+from app.vision.http import vision_error_http_status
 
 logger = get_logger("app")
 
@@ -21,6 +23,14 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
         logger.warning("Camera error: %s", exc.message)
         return JSONResponse(
             status_code=camera_error_http_status(exc),
+            content={"error": {"code": exc.code, "message": exc.message}},
+        )
+
+    @app.exception_handler(VisionError)
+    async def vision_exception_handler(_request: Request, exc: VisionError) -> JSONResponse:
+        logger.warning("Vision error: %s", exc.message)
+        return JSONResponse(
+            status_code=vision_error_http_status(exc),
             content={"error": {"code": exc.code, "message": exc.message}},
         )
 

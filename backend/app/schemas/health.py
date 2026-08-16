@@ -18,6 +18,13 @@ class CameraHealthStatus(BaseModel):
     running: bool
 
 
+class FaceDetectionHealthStatus(BaseModel):
+    enabled: bool
+    model_loaded: bool
+    provider: str | None = None
+    last_inference_ms: float | None = None
+
+
 class SystemStatusResponse(BaseModel):
     status: Literal["ok", "degraded"]
     environment: str
@@ -25,3 +32,4 @@ class SystemStatusResponse(BaseModel):
     uptime_seconds: float = Field(ge=0)
     database: DatabaseStatus
     camera: CameraHealthStatus
+    face_detection: FaceDetectionHealthStatus

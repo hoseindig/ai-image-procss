@@ -1,8 +1,8 @@
-# Dependencies (Phase 2)
+# Dependencies (Phase 3)
 
 Python package versions are pinned in `backend/pyproject.toml`. Licenses below were taken from the projects’ official packaging metadata / repositories. This is not legal advice.
 
-No AI model files are used in Phase 2. Model licenses will be recorded in `docs/MODELS.md` starting in Phase 3.
+AI **model** licenses are recorded in `docs/MODELS.md`. Package licenses here are for the Python wheels, not for YuNet weights.
 
 There are **no** cloud AI, telemetry, or paid API dependencies.
 
@@ -19,10 +19,13 @@ There are **no** cloud AI, telemetry, or paid API dependencies.
 | SQLAlchemy | 2.0.52 | MIT | ORM / engine (2.x APIs only) |
 | Alembic | 1.19.1 | MIT | Schema migrations |
 | greenlet | (SQLAlchemy dependency) | MIT | SQLAlchemy 2 support |
-| NumPy | 2.5.2 | BSD-3-Clause | Frame buffer (`Frame.data`) without exposing OpenCV types |
-| opencv-python | 5.0.0.93 | Apache-2.0 | USB `VideoCapture` and the manual preview window |
+| NumPy | 2.5.2 | BSD-3-Clause | Frames, YuNet decode, coordinate mapping |
+| opencv-python | 5.0.0.93 | Apache-2.0 | USB `VideoCapture`, resize/pad, preview drawing |
+| onnxruntime | 1.28.0 | MIT | CPU inference (`CPUExecutionProvider` only) |
 
-**OpenCV choice:** `opencv-python` 5.0.0.93 is the current PyPI release with a Windows Python 3.13 wheel. `opencv-contrib-python` is **not** used (extra modules, including face helpers, are out of scope). `opencv-python-headless` would drop HighGUI, which the manual smoke test needs for `imshow`. OpenCV is used only for capture, frame retrieval, and the smoke-test window — not for detection or recognition.
+**ONNX Runtime:** `onnxruntime==1.28.0` is the CPU wheel. Do **not** install `onnxruntime-gpu`. The engine passes `providers=["CPUExecutionProvider"]` and checks that this provider is active. Selected for Python 3.13 / Windows 11 (Phase 0 pin; `Requires-Python: >=3.11` on PyPI).
+
+**OpenCV choice:** unchanged from Phase 2. OpenCV is not used as the DNN runtime for YuNet.
 
 All of the above were selected for **Python 3.13.1** on Windows 11.
 
@@ -36,15 +39,16 @@ All of the above were selected for **Python 3.13.1** on Windows 11.
 | Ruff | 0.16.3 | MIT | Lint + format |
 | mypy | 2.3.1 | MIT | Static typing |
 
-## Explicitly not included (Phase 2)
+## Explicitly not included (Phase 3)
 
 | Package | Reason |
 | --- | --- |
-| ONNX Runtime | Phase 3+ |
+| onnxruntime-gpu | CPU-only machine; GPU providers are out of scope |
 | insightface | Pretrained weights are **not suitable for commercial use** |
 | Redis / Celery | Not needed for one local process |
 | PostgreSQL drivers | SQLite only |
 | Docker | Native Windows is the run path |
+| SFace / embedding extra packages | Phase 4 |
 
 ## Known warnings
 
