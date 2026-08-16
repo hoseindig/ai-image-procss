@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import numpy as np
+
 from app.vision.types import FaceQuality, FaceTrack, QualityRejectionReason, TrackState
 from app.vision.visualize import draw_detections, draw_tracks
 from tests.yunet_helpers import blank_frame, sample_face
@@ -60,3 +62,22 @@ def test_draw_tracks_with_quality_keeps_shape() -> None:
     ]
     drawn = draw_tracks(frame.data, tracks, qualities)
     assert drawn.shape == frame.data.shape
+
+
+def test_compose_aligned_debug_keeps_wider_canvas() -> None:
+    from app.vision.align import AlignedFace
+    from app.vision.visualize import compose_aligned_debug
+
+    frame = blank_frame(80, 60)
+    crop = np.zeros((112, 112, 3), dtype=np.uint8)
+    crop[:, :] = (40, 80, 120)
+    aligned = AlignedFace(
+        image=crop,
+        width=112,
+        height=112,
+        source_track_id=1,
+        transform=np.eye(2, 3, dtype=np.float64),
+    )
+    composed = compose_aligned_debug(frame.data, [aligned], panel_size=112)
+    assert composed.shape[0] >= frame.data.shape[0]
+    assert composed.shape[1] > frame.data.shape[1]
