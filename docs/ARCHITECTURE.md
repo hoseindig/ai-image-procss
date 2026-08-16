@@ -1,6 +1,6 @@
-# Architecture (Phase 7A)
+# Architecture (Phase 7B)
 
-Phase 7A adds persistent **Person** records and an embedding **gallery**. Recognition / matching are still absent.
+Phase 7B adds local CPU gallery recognition after SFace embedding. Events, snapshots, and the frontend remain absent.
 
 ## Runtime (vision)
 
@@ -14,47 +14,39 @@ USB Webcam
     → FaceQualityAssessor
     → FaceAligner (5-point)
     → FaceEmbedder (SFaceEmbedder / ONNX Runtime CPU)
-    → FaceEmbedding (128-D, L2-normalized; size-1 slot)
+    → FaceEmbedding (128-D, L2-normalized)
+    → FaceRecognizer (GalleryFaceRecognizer / cosine)
+    → RecognitionResult
     → visualization / REST metadata
 ```
 
-## Persistence (enrollment)
+## Persistence
 
 ```text
-Validated FaceEmbedding + quality.accepted
-    → EnrollmentService
-    → SQLite enrollment_samples (binary float32 blob)
-PersonService → SQLite persons (UUID Person ID)
+Person + EnrollmentSample (SQLite)
+    ← EnrollmentService (Phase 7A)
+    → SqlAlchemyGalleryStore (active persons only)
+    → GalleryFaceRecognizer
 ```
 
-Application enrollment code does **not** call ONNX Runtime directly. Track ID is optional tracing metadata on a sample — never a Person ID.
+Application code depends on `FaceRecognizer`, not ONNX Runtime. Track ID is runtime tracing only.
 
 ## Latest-frame scheduling
 
-```text
-Camera thread     → LatestFrameSlot (size 1)
-Detection thread  → detect → track → quality → align → embed
-                  → LatestValueSlot[DetectionSnapshot] (size 1)
-                  → LatestValueSlot[AlignedFace…] (size 1)
-                  → LatestValueSlot[FaceEmbedding…] (size 1)
-```
-
-No unbounded queues. One SFace session is loaded once and reused.
+Bounded size-1 slots for frame, detection snapshot, aligned faces, and embeddings. One YuNet session and one SFace session are reused. Gallery is loaded per recognition call via a single join query (no N+1).
 
 ## API
 
 | Method | Path | Role |
 | --- | --- | --- |
-| GET | `/api/cameras/{id}/detections` | faces, tracks, quality, embedding **metadata** |
-| POST/GET/PATCH/DELETE | `/api/persons…` | person CRUD + soft deactivate |
-| POST/GET/DELETE | `/api/persons/{id}/enrollments…` | gallery samples (POST accepts vector; GET does not return it) |
+| GET | `/api/cameras/{id}/detections` | faces, tracks, quality, embedding metadata, **recognition** |
+| POST/GET/PATCH/DELETE | `/api/persons…` | person + enrollment gallery |
 
-Raw embedding vectors are not exposed on normal GET APIs.
+Raw embedding vectors are never exposed on normal GET APIs. Similarity is not a percentage.
 
 ## Docs
 
-- `docs/PERSON_ENROLLMENT.md` — schema, storage format, privacy, backup
-- `docs/FACE_EMBEDDING.md` — model, preprocessing
-- `docs/FACE_QUALITY.md` — quality / alignment
-- `docs/TRACKING.md` — Track ID semantics
+- `docs/FACE_RECOGNITION.md` — matching, threshold, privacy, security limits
+- `docs/PERSON_ENROLLMENT.md` — gallery persistence
+- `docs/FACE_EMBEDDING.md` — SFace model / preprocessing
 - `docs/MODELS.md` — licenses and checksums

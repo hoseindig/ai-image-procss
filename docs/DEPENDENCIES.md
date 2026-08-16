@@ -1,4 +1,4 @@
-# Dependencies (Phase 7A)
+# Dependencies (Phase 7B)
 
 Python package versions are pinned in `backend/pyproject.toml`. Licenses below were taken from the projects’ official packaging metadata / repositories. This is not legal advice.
 
@@ -39,12 +39,13 @@ All of the above were selected for **Python 3.13** on Windows 11 (primary tested
 | Ruff | 0.16.3 | MIT | Lint + format |
 | mypy | 2.3.1 | MIT | Static typing |
 
-## Explicitly not included (Phase 7A)
+## Explicitly not included (Phase 7B)
 
 | Package | Reason |
 | --- | --- |
 | onnxruntime-gpu | CPU-only machine; GPU providers are out of scope |
 | insightface | Pretrained weights are **not suitable for commercial use** |
+| FAISS / vector DBs | Small local gallery; straightforward scan is enough for Phase 7B |
 | Redis / Celery | Not needed for one local process |
 | PostgreSQL drivers | SQLite only |
 | Docker | Native Windows/Linux is the run path |

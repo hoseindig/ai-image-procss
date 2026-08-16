@@ -111,6 +111,9 @@ class Settings(BaseSettings):
     face_embedding_enabled: bool = Field(default=True)
     face_embedding_model_path: str = Field(default="models/face/sface/2021dec.onnx")
     face_embedding_threads: int = Field(default=2, ge=1)
+    face_recognition_enabled: bool = Field(default=True)
+    # OpenCV SFace FR_COSINE / LFW engineering default; match when similarity >= threshold.
+    face_recognition_threshold: float = Field(default=0.363, ge=0.0, le=1.0)
 
     @field_validator("app_env", mode="before")
     @classmethod

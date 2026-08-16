@@ -8,10 +8,11 @@ from app.schemas.detection import (
     FaceDetectionDto,
     FaceEmbeddingDto,
     FaceQualityDto,
+    FaceRecognitionDto,
     FaceTrackDto,
 )
 from app.vision.runtime import DetectionRuntime
-from app.vision.types import DetectionSnapshot, EmbeddingInfo, FaceQuality
+from app.vision.types import DetectionSnapshot, EmbeddingInfo, FaceQuality, RecognitionInfo
 
 
 class DetectionService:
@@ -34,6 +35,7 @@ def _to_response(
         return DetectionResponse(camera_id=camera_id, enabled=enabled)
     quality_by_id = {item.track_id: item for item in snapshot.qualities}
     embedding_by_id = {item.track_id: item for item in snapshot.embeddings}
+    recognition_by_id = {item.track_id: item for item in snapshot.recognitions}
     aligned_ids = set(snapshot.aligned_track_ids)
     return DetectionResponse(
         camera_id=camera_id,
@@ -61,6 +63,7 @@ def _to_response(
                     track.track_id in aligned_ids,
                 ),
                 embedding=_embedding_dto(embedding_by_id.get(track.track_id)),
+                recognition=_recognition_dto(recognition_by_id.get(track.track_id)),
             )
             for track in snapshot.tracks
         ],
@@ -69,6 +72,7 @@ def _to_response(
         quality_ms=snapshot.quality_ms,
         alignment_ms=snapshot.alignment_ms,
         embedding_ms=snapshot.embedding_ms,
+        recognition_ms=snapshot.recognition_ms,
         aligned_count=snapshot.aligned_count,
         embedded_count=snapshot.embedded_count,
         error=snapshot.error,
@@ -98,4 +102,17 @@ def _embedding_dto(info: EmbeddingInfo | None) -> FaceEmbeddingDto | None:
         dimension=info.dimension,
         reason=info.reason,
         normalized=info.normalized,
+    )
+
+
+def _recognition_dto(info: RecognitionInfo | None) -> FaceRecognitionDto | None:
+    if info is None:
+        return None
+    return FaceRecognitionDto(
+        status=info.status,
+        person_id=info.person_id,
+        person_display_name=info.person_display_name,
+        similarity=info.similarity,
+        enrollment_id=info.enrollment_id,
+        reason=info.reason,
     )

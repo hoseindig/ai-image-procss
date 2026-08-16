@@ -2,7 +2,7 @@
 
 The camera capture thread keeps only the newest frame. This worker polls that
 slot on an interval, runs FaceDetector → FaceTracker → quality → alignment →
-embedding, and keeps only the newest result. There is no frame queue.
+embedding → recognition, and keeps only the newest result. There is no frame queue.
 """
 
 from __future__ import annotations
@@ -18,7 +18,9 @@ from app.core.logging import get_logger
 from app.vision.align import AlignedFace, FaceAligner
 from app.vision.detector import FaceDetector
 from app.vision.embedder import FaceEmbedder, FaceEmbedding
+from app.vision.gallery_recognizer import skipped_recognition
 from app.vision.quality import FaceQualityAssessor
+from app.vision.recognizer import FaceRecognizer, RecognitionResult
 from app.vision.slot import LatestValueSlot
 from app.vision.tracker import FaceTracker
 from app.vision.types import (
@@ -28,6 +30,9 @@ from app.vision.types import (
     EmbeddingStatus,
     FaceQuality,
     FaceTrack,
+    RecognitionInfo,
+    RecognitionReason,
+    RecognitionStatus,
 )
 
 logger = get_logger("app.vision")
@@ -53,6 +58,7 @@ class DetectionWorker:
         quality_assessor: FaceQualityAssessor | None = None,
         aligner: FaceAligner | None = None,
         embedder: FaceEmbedder | None = None,
+        recognizer: FaceRecognizer | None = None,
     ) -> None:
         self._camera_id = camera_id
         self._frame_getter = frame_getter
@@ -61,6 +67,7 @@ class DetectionWorker:
         self._quality_assessor = quality_assessor
         self._aligner = aligner
         self._embedder = embedder
+        self._recognizer = recognizer
         self._interval_s = max(interval_ms, 1) / 1000.0
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -88,13 +95,14 @@ class DetectionWorker:
         thread.start()
         logger.info(
             "Detection worker started camera_id=%s interval_ms=%s tracking=%s "
-            "quality=%s alignment=%s embedding=%s",
+            "quality=%s alignment=%s embedding=%s recognition=%s",
             self._camera_id,
             int(self._interval_s * 1000),
             self._tracker is not None,
             self._quality_assessor is not None,
             self._aligner is not None,
             self._embedder is not None,
+            self._recognizer is not None,
         )
 
     def stop(self) -> None:
@@ -184,13 +192,16 @@ class DetectionWorker:
             aligned: list[AlignedFace] = []
             embedding_infos: list[EmbeddingInfo] = []
             embeddings: list[FaceEmbedding] = []
+            recognitions: list[RecognitionInfo] = []
             quality_ms: float | None = None
             alignment_ms: float | None = None
             embedding_ms: float | None = None
+            recognition_ms: float | None = None
             if (
                 self._quality_assessor is not None
                 or self._aligner is not None
                 or self._embedder is not None
+                or self._recognizer is not None
             ):
                 try:
                     (
@@ -198,15 +209,20 @@ class DetectionWorker:
                         aligned,
                         embedding_infos,
                         embeddings,
+                        recognitions,
                         quality_ms,
                         alignment_ms,
                         embedding_ms,
+                        recognition_ms,
                     ) = self._post_track(frame, tracks)
                 except Exception as exc:
                     logger.exception(
-                        "Face quality/alignment/embedding failed camera_id=%s", self._camera_id
+                        "Face quality/alignment/embedding/recognition failed camera_id=%s",
+                        self._camera_id,
                     )
-                    self._store_error(str(exc) or "Face quality/alignment/embedding failed")
+                    self._store_error(
+                        str(exc) or "Face quality/alignment/embedding/recognition failed"
+                    )
                     last_infer = time.monotonic()
                     self._stop_event.wait(_ERROR_BACKOFF_SECONDS)
                     continue
@@ -226,11 +242,13 @@ class DetectionWorker:
                     tracks=tracks,
                     qualities=qualities,
                     embeddings=embedding_infos,
+                    recognitions=recognitions,
                     inference_ms=inference_ms,
                     tracking_ms=tracking_ms,
                     quality_ms=quality_ms,
                     alignment_ms=alignment_ms,
                     embedding_ms=embedding_ms,
+                    recognition_ms=recognition_ms,
                     aligned_count=len(aligned_tuple),
                     aligned_track_ids=aligned_ids,
                     embedded_count=len(embedding_tuple),
@@ -248,6 +266,8 @@ class DetectionWorker:
         list[AlignedFace],
         list[EmbeddingInfo],
         list[FaceEmbedding],
+        list[RecognitionInfo],
+        float | None,
         float | None,
         float | None,
         float | None,
@@ -256,9 +276,11 @@ class DetectionWorker:
         aligned: list[AlignedFace] = []
         embedding_infos: list[EmbeddingInfo] = []
         embeddings: list[FaceEmbedding] = []
+        recognitions: list[RecognitionInfo] = []
         quality_ms: float | None = None
         alignment_ms: float | None = None
         embedding_ms: float | None = None
+        recognition_ms: float | None = None
 
         current_tracks = [track for track in tracks if track.missed_frames == 0]
 
@@ -281,6 +303,7 @@ class DetectionWorker:
             alignment_ms = (time.perf_counter() - align_started) * 1000.0
 
         aligned_by_id = {item.source_track_id: item for item in aligned}
+        embedding_by_track: dict[int, FaceEmbedding] = {}
 
         if self._embedder is not None:
             embed_started = time.perf_counter()
@@ -322,6 +345,7 @@ class DetectionWorker:
                     _ = exc
                     continue
                 embeddings.append(embedding)
+                embedding_by_track[track.track_id] = embedding
                 embedding_infos.append(
                     EmbeddingInfo(
                         track_id=track.track_id,
@@ -333,15 +357,68 @@ class DetectionWorker:
             if embeddings or embedding_infos:
                 embedding_ms = (time.perf_counter() - embed_started) * 1000.0
 
+        if self._recognizer is not None:
+            recog_started = time.perf_counter()
+            for track in current_tracks:
+                result = self._recognize_track(
+                    track.track_id,
+                    rejected_ids=rejected_ids,
+                    aligned_by_id=aligned_by_id,
+                    embedding_by_track=embedding_by_track,
+                    embedding_infos=embedding_infos,
+                )
+                recognitions.append(_recognition_info(result))
+            if recognitions:
+                recognition_ms = (time.perf_counter() - recog_started) * 1000.0
+
         return (
             qualities,
             aligned,
             embedding_infos,
             embeddings,
+            recognitions,
             quality_ms,
             alignment_ms,
             embedding_ms,
+            recognition_ms,
         )
+
+    def _recognize_track(
+        self,
+        track_id: int,
+        *,
+        rejected_ids: set[int],
+        aligned_by_id: dict[int, AlignedFace],
+        embedding_by_track: dict[int, FaceEmbedding],
+        embedding_infos: list[EmbeddingInfo],
+    ) -> RecognitionResult:
+        assert self._recognizer is not None
+        if track_id in rejected_ids:
+            return skipped_recognition(track_id, RecognitionReason.QUALITY_REJECTED)
+        if track_id not in aligned_by_id and self._aligner is not None:
+            return skipped_recognition(track_id, RecognitionReason.ALIGNMENT_UNAVAILABLE)
+        embedding = embedding_by_track.get(track_id)
+        if embedding is None:
+            failed = any(
+                item.track_id == track_id and item.status is EmbeddingStatus.FAILED
+                for item in embedding_infos
+            )
+            if failed:
+                return skipped_recognition(track_id, RecognitionReason.EMBEDDING_FAILED)
+            return skipped_recognition(track_id, RecognitionReason.EMBEDDING_UNAVAILABLE)
+        try:
+            return self._recognizer.recognize(embedding)
+        except Exception:
+            logger.exception(
+                "Face recognition failed camera_id=%s track_id=%s",
+                self._camera_id,
+                track_id,
+            )
+            return RecognitionResult(
+                status=RecognitionStatus.ERROR,
+                track_id=track_id,
+                reason=RecognitionReason.INTERNAL_ERROR,
+            )
 
     def _store_error(self, message: str) -> None:
         self._aligned.put(())
@@ -354,14 +431,28 @@ class DetectionWorker:
                 tracks=[],
                 qualities=[],
                 embeddings=[],
+                recognitions=[],
                 inference_ms=None,
                 tracking_ms=None,
                 quality_ms=None,
                 alignment_ms=None,
                 embedding_ms=None,
+                recognition_ms=None,
                 aligned_count=0,
                 aligned_track_ids=[],
                 embedded_count=0,
                 error=message,
             )
         )
+
+
+def _recognition_info(result: RecognitionResult) -> RecognitionInfo:
+    return RecognitionInfo(
+        track_id=result.track_id,
+        status=result.status,
+        person_id=result.person_id,
+        person_display_name=result.person_display_name,
+        similarity=result.similarity,
+        enrollment_id=result.enrollment_id,
+        reason=result.reason,
+    )

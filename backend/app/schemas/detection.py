@@ -12,6 +12,8 @@ from app.vision.types import (
     EmbeddingStatus,
     FaceLandmarks,
     QualityRejectionReason,
+    RecognitionReason,
+    RecognitionStatus,
     TrackState,
 )
 
@@ -42,6 +44,17 @@ class FaceEmbeddingDto(BaseModel):
     normalized: bool = False
 
 
+class FaceRecognitionDto(BaseModel):
+    """Recognition metadata. Similarity is a score, not a probability/percentage."""
+
+    status: RecognitionStatus
+    person_id: str | None = None
+    person_display_name: str | None = None
+    similarity: float | None = None
+    enrollment_id: str | None = None
+    reason: RecognitionReason | None = None
+
+
 class FaceTrackDto(BaseModel):
     track_id: int = Field(ge=1)
     state: TrackState
@@ -52,6 +65,7 @@ class FaceTrackDto(BaseModel):
     missed_frames: int = Field(ge=0)
     quality: FaceQualityDto | None = None
     embedding: FaceEmbeddingDto | None = None
+    recognition: FaceRecognitionDto | None = None
 
 
 class DetectionResponse(BaseModel):
@@ -65,6 +79,7 @@ class DetectionResponse(BaseModel):
     quality_ms: float | None = None
     alignment_ms: float | None = None
     embedding_ms: float | None = None
+    recognition_ms: float | None = None
     aligned_count: int = Field(default=0, ge=0)
     embedded_count: int = Field(default=0, ge=0)
     error: str | None = None

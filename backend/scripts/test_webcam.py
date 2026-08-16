@@ -48,6 +48,7 @@ try:
     from app.cameras.usb import UsbCameraSource
     from app.core.config import load_settings
     from app.core.logging import setup_logging
+    from app.db.session import Database
     from app.vision.align import AlignedFace
     from app.vision.exceptions import ModelNotFoundError, VisionError
     from app.vision.factory import (
@@ -55,8 +56,10 @@ try:
         create_face_detector,
         create_face_embedder,
         create_face_quality_assessor,
+        create_face_recognizer,
         create_face_tracker,
     )
+    from app.vision.gallery_recognizer import skipped_recognition
     from app.vision.types import (
         EmbeddingInfo,
         EmbeddingSkipReason,
@@ -64,6 +67,8 @@ try:
         FaceDetection,
         FaceQuality,
         FaceTrack,
+        RecognitionInfo,
+        RecognitionReason,
     )
     from app.vision.visualize import compose_aligned_debug, draw_detections, draw_tracks
 except ModuleNotFoundError as exc:
@@ -100,6 +105,11 @@ def main() -> int:
         "--show-embedding",
         action="store_true",
         help="Run SFace and overlay Embedding: 128-D metadata (not the raw vector)",
+    )
+    parser.add_argument(
+        "--show-recognition",
+        action="store_true",
+        help="Match against SQLite gallery and overlay person/similarity (not %)",
     )
     parser.add_argument(
         "--log-quality",
@@ -151,6 +161,7 @@ def main() -> int:
     last_tracks: list[FaceTrack] = []
     last_qualities: list[FaceQuality] = []
     last_embeddings: list[EmbeddingInfo] = []
+    last_recognitions: list[RecognitionInfo] = []
     last_aligned_faces: list[AlignedFace] = []
     last_detect_at = 0.0
     interval_s = settings.face_detection_inference_interval_ms / 1000.0
@@ -158,15 +169,22 @@ def main() -> int:
     quality_assessor = create_face_quality_assessor(settings) if detector is not None else None
     aligner = create_face_aligner(settings) if detector is not None else None
     embedder = None
-    if detector is not None and (args.show_embedding or settings.face_embedding_enabled):
+    recognizer = None
+    database: Database | None = None
+    need_embed = args.show_embedding or args.show_recognition or settings.face_embedding_enabled
+    need_recog = args.show_recognition or settings.face_recognition_enabled
+    if detector is not None and need_embed:
         try:
             embedder = create_face_embedder(settings)
         except (ModelNotFoundError, VisionError) as exc:
-            if args.show_embedding:
+            if args.show_embedding or args.show_recognition:
                 message = exc.message if isinstance(exc, VisionError) else str(exc)
                 print(message, file=sys.stderr)
                 return 1
             embedder = None
+    if detector is not None and need_recog and embedder is not None:
+        database = Database(settings.database_url)
+        recognizer = create_face_recognizer(settings, database)
     phase_stats: dict[str, dict[str, int]] = {
         "A": {"seen": 0, "accepted": 0, "aligned": 0, "rejected": 0},
         "B": {"seen": 0, "accepted": 0, "aligned": 0, "rejected": 0},
@@ -187,6 +205,13 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+    if args.show_recognition and recognizer is None:
+        print(
+            "--show-recognition requires FACE_RECOGNITION_ENABLED=true, SFace, "
+            "and a migrated SQLite gallery.",
+            file=sys.stderr,
+        )
+        return 1
     try:
         source.open()
         status = source.get_status()
@@ -204,8 +229,11 @@ def main() -> int:
                 f"quality={quality_assessor is not None} "
                 f"alignment={aligner is not None} "
                 f"embedding={embedder is not None} "
+                f"recognition={recognizer is not None} "
+                f"threshold={settings.face_recognition_threshold} "
                 f"show_aligned={args.show_aligned} "
-                f"show_embedding={args.show_embedding}"
+                f"show_embedding={args.show_embedding} "
+                f"show_recognition={args.show_recognition}"
             )
         source.start()
         if display:
@@ -251,9 +279,10 @@ def main() -> int:
             if detector is not None and now - last_detect_at >= interval_s:
                 last_faces = detector.detect(frame)
                 last_tracks = tracker.update(last_faces) if tracker is not None else []
-                last_qualities = []
-                last_aligned_faces = []
-                last_embeddings = []
+                last_qualities.clear()
+                last_aligned_faces.clear()
+                last_embeddings.clear()
+                last_recognitions.clear()
                 if quality_assessor is not None:
                     for track in last_tracks:
                         if track.missed_frames != 0:
@@ -267,6 +296,7 @@ def main() -> int:
                         if track.missed_frames != 0:
                             continue
                         last_aligned_faces.append(aligner.align(frame, track))
+                embedding_by_track = {}
                 if embedder is not None:
                     aligned_by_id = {item.source_track_id: item for item in last_aligned_faces}
                     rejected = {item.track_id for item in last_qualities if not item.accepted}
@@ -293,6 +323,7 @@ def main() -> int:
                             )
                             continue
                         embedding = embedder.embed(aligned_face)
+                        embedding_by_track[track.track_id] = embedding
                         last_embeddings.append(
                             EmbeddingInfo(
                                 track_id=track.track_id,
@@ -301,15 +332,54 @@ def main() -> int:
                                 normalized=embedding.normalized,
                             )
                         )
+                if recognizer is not None:
+                    rejected = {item.track_id for item in last_qualities if not item.accepted}
+                    aligned_ids = {item.source_track_id for item in last_aligned_faces}
+                    for track in last_tracks:
+                        if track.missed_frames != 0:
+                            continue
+                        if track.track_id in rejected:
+                            result = skipped_recognition(
+                                track.track_id, RecognitionReason.QUALITY_REJECTED
+                            )
+                        elif track.track_id not in aligned_ids:
+                            result = skipped_recognition(
+                                track.track_id, RecognitionReason.ALIGNMENT_UNAVAILABLE
+                            )
+                        elif track.track_id not in embedding_by_track:
+                            result = skipped_recognition(
+                                track.track_id, RecognitionReason.EMBEDDING_UNAVAILABLE
+                            )
+                        else:
+                            result = recognizer.recognize(embedding_by_track[track.track_id])
+                        last_recognitions.append(
+                            RecognitionInfo(
+                                track_id=result.track_id,
+                                status=result.status,
+                                person_id=result.person_id,
+                                person_display_name=result.person_display_name,
+                                similarity=result.similarity,
+                                enrollment_id=result.enrollment_id,
+                                reason=result.reason,
+                            )
+                        )
                 last_detect_at = now
                 detected_frames += 1
                 if args.log_quality and last_tracks:
                     prefix = f"P{phase_labels[phase_index][0]} " if args.guided_verify else ""
                     _log_quality_pass(last_tracks, last_qualities, last_aligned_faces, prefix)
-                    for info in last_embeddings:
+                    for embed_info in last_embeddings:
                         print(
-                            f"{prefix}embed track=#{info.track_id} status={info.status.value} "
-                            f"dim={info.dimension} reason={info.reason}"
+                            f"{prefix}embed track=#{embed_info.track_id} "
+                            f"status={embed_info.status.value} "
+                            f"dim={embed_info.dimension} reason={embed_info.reason}"
+                        )
+                    for recog_info in last_recognitions:
+                        print(
+                            f"{prefix}recog track=#{recog_info.track_id} "
+                            f"status={recog_info.status.value} "
+                            f"person={recog_info.person_display_name or recog_info.person_id} "
+                            f"sim={recog_info.similarity} reason={recog_info.reason}"
                         )
                 if args.guided_verify and last_qualities:
                     phase_key = phase_labels[phase_index][0]
@@ -330,7 +400,13 @@ def main() -> int:
                 import cv2
 
                 if detector is not None and tracker is not None:
-                    image = draw_tracks(frame.data, last_tracks, last_qualities, last_embeddings)
+                    image = draw_tracks(
+                        frame.data,
+                        last_tracks,
+                        last_qualities,
+                        last_embeddings,
+                        last_recognitions,
+                    )
                 elif detector is not None:
                     image = draw_detections(frame.data, last_faces)
                 else:
@@ -405,6 +481,8 @@ def main() -> int:
         return 1
     finally:
         source.close()
+        if database is not None:
+            database.dispose()
         if display:
             try:
                 import cv2

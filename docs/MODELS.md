@@ -2,7 +2,7 @@
 
 License-first model policy: source-code licenses and pretrained-weight licenses are treated as separate. Do not add a model whose commercial-use status is unclear.
 
-Phases 3–6 ship **YuNet detection** and **SFace embedding**. Recognition / person identity are later phases.
+Phases 3–7B ship **YuNet detection**, **SFace embedding**, and **gallery recognition**. Events/frontend are later phases.
 
 The application **never downloads models at runtime**. After files are installed, inference is offline (no cloud AI, no telemetry).
 
@@ -73,6 +73,6 @@ Do not add the `insightface` package.
 | Topic | When |
 | --- | --- |
 | Person enrollment / gallery | Phase 7A |
-| Recognition / matching | Phase 7B+ |
+| Recognition / matching | Phase 7B |
 | GPU / CUDA EP | Out of scope for v1 |
 | SFace INT8 | Only after measurement |

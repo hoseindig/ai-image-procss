@@ -28,6 +28,8 @@ class FaceDetectionHealthStatus(BaseModel):
     alignment_enabled: bool = False
     embedding_enabled: bool = False
     embedding_provider: str | None = None
+    recognition_enabled: bool = False
+    recognition_threshold: float | None = None
 
 
 class SystemStatusResponse(BaseModel):

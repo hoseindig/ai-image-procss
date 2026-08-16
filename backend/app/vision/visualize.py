@@ -17,6 +17,8 @@ from app.vision.types import (
     FaceLandmarks,
     FaceQuality,
     FaceTrack,
+    RecognitionInfo,
+    RecognitionStatus,
     TrackState,
 )
 
@@ -43,11 +45,13 @@ def draw_tracks(
     tracks: list[FaceTrack],
     qualities: list[FaceQuality] | None = None,
     embeddings: list[EmbeddingInfo] | None = None,
+    recognitions: list[RecognitionInfo] | None = None,
 ) -> NDArray[np.uint8]:
-    """Return a copy of `image` with track IDs, optional quality/embedding, boxes."""
+    """Return a copy of `image` with track IDs and optional quality/embed/recog."""
     output = np.ascontiguousarray(image.copy())
     quality_by_id = {item.track_id: item for item in qualities or []}
     embedding_by_id = {item.track_id: item for item in embeddings or []}
+    recognition_by_id = {item.track_id: item for item in recognitions or []}
     for track in tracks:
         color = _track_color(track.state)
         lines = [
@@ -71,8 +75,30 @@ def draw_tracks(
                 lines.append(f"Embedding: skipped ({skip})")
             else:
                 lines.append("Embedding: failed")
+        recognition = recognition_by_id.get(track.track_id)
+        if recognition is not None:
+            lines.extend(_recognition_lines(recognition))
         _draw_box(output, track.bounding_box, track.landmarks, lines, color)
     return output
+
+
+def _recognition_lines(info: RecognitionInfo) -> list[str]:
+    if info.status is RecognitionStatus.MATCHED:
+        name = info.person_display_name or info.person_id or "Matched"
+        lines = [str(name)]
+        if info.similarity is not None:
+            lines.append(f"Similarity: {info.similarity:.4f}")
+        return lines
+    if info.status is RecognitionStatus.UNKNOWN:
+        lines = ["Unknown"]
+        if info.similarity is not None:
+            lines.append(f"Similarity: {info.similarity:.4f}")
+        return lines
+    if info.status is RecognitionStatus.SKIPPED:
+        reason = info.reason.value if info.reason is not None else "skipped"
+        return ["Recognition: SKIPPED", f"Reason: {reason}"]
+    reason = info.reason.value if info.reason is not None else "error"
+    return ["Recognition: ERROR", f"Reason: {reason}"]
 
 
 def compose_aligned_debug(

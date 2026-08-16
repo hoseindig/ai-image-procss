@@ -111,6 +111,37 @@ class EmbeddingInfo(BaseModel):
     normalized: bool = False
 
 
+class RecognitionStatus(StrEnum):
+    MATCHED = "matched"
+    UNKNOWN = "unknown"
+    SKIPPED = "skipped"
+    ERROR = "error"
+
+
+class RecognitionReason(StrEnum):
+    BELOW_THRESHOLD = "below_threshold"
+    GALLERY_EMPTY = "gallery_empty"
+    QUALITY_REJECTED = "quality_rejected"
+    ALIGNMENT_UNAVAILABLE = "alignment_unavailable"
+    EMBEDDING_UNAVAILABLE = "embedding_unavailable"
+    EMBEDDING_FAILED = "embedding_failed"
+    RECOGNITION_DISABLED = "recognition_disabled"
+    INVALID_EMBEDDING = "invalid_embedding"
+    INTERNAL_ERROR = "internal_error"
+
+
+class RecognitionInfo(BaseModel):
+    """API-safe recognition metadata. No embedding vectors."""
+
+    track_id: int = Field(ge=1)
+    status: RecognitionStatus
+    person_id: str | None = None
+    person_display_name: str | None = None
+    similarity: float | None = None
+    enrollment_id: str | None = None
+    reason: RecognitionReason | None = None
+
+
 class DetectionSnapshot(BaseModel):
     """Latest completed detection for a camera. Replaced as a whole; never queued."""
 
@@ -120,11 +151,13 @@ class DetectionSnapshot(BaseModel):
     tracks: list[FaceTrack] = Field(default_factory=list)
     qualities: list[FaceQuality] = Field(default_factory=list)
     embeddings: list[EmbeddingInfo] = Field(default_factory=list)
+    recognitions: list[RecognitionInfo] = Field(default_factory=list)
     inference_ms: float | None = None
     tracking_ms: float | None = None
     quality_ms: float | None = None
     alignment_ms: float | None = None
     embedding_ms: float | None = None
+    recognition_ms: float | None = None
     aligned_count: int = Field(default=0, ge=0)
     aligned_track_ids: list[int] = Field(default_factory=list)
     embedded_count: int = Field(default=0, ge=0)

@@ -57,6 +57,8 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         "FACE_EMBEDDING_ENABLED",
         "FACE_EMBEDDING_MODEL_PATH",
         "FACE_EMBEDDING_THREADS",
+        "FACE_RECOGNITION_ENABLED",
+        "FACE_RECOGNITION_THRESHOLD",
     ):
         monkeypatch.delenv(key, raising=False)
     database_path = tmp_path / "test.db"
@@ -71,6 +73,7 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         cors_origins=["http://localhost:3000"],
         face_detection_enabled=False,
         face_embedding_enabled=False,
+        face_recognition_enabled=False,
     )
 
 

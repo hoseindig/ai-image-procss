@@ -1,6 +1,6 @@
 # Person enrollment & face gallery (Phase 7A)
 
-Phase 7A persists **Person** records and **enrollment embedding samples** in SQLite. It does **not** run recognition, similarity matching, Known/Unknown classification, or events.
+Phase 7A persists **Person** records and **enrollment embedding samples** in SQLite. Recognition/matching is Phase 7B (`docs/FACE_RECOGNITION.md`). This document covers gallery persistence only.
 
 **Track ID ≠ Person ID.** Person IDs are UUID strings stored in the database.
 
@@ -153,7 +153,7 @@ Store backups with the same access controls as the live database (biometric data
 
 ## Known limitations
 
-- No recognition / matching in this phase
+- Recognition/matching is Phase 7B (see `docs/FACE_RECOGNITION.md`)
 - No frontend enrollment UI
 - Enrollment POST accepts a precomputed embedding (pipeline boundary); no second image path
 - Linux is documented; primary measured environment remains Windows 11

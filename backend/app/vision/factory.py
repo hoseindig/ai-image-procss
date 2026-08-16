@@ -6,12 +6,16 @@ from pathlib import Path
 
 from app.core.config import PROJECT_ROOT, Settings
 from app.core.logging import get_logger
+from app.db.session import Database
 from app.vision.align import AlignConfig, FaceAligner, LandmarkFaceAligner
 from app.vision.embedder import FaceEmbedder
 from app.vision.engine import OnnxRuntimeEngine
 from app.vision.exceptions import ModelNotFoundError
+from app.vision.gallery_recognizer import GalleryFaceRecognizer
+from app.vision.gallery_store import SqlAlchemyGalleryStore
 from app.vision.iou_tracker import IoUCentroidFaceTracker, TrackerConfig
 from app.vision.quality import FaceQualityAssessor, HeuristicFaceQualityAssessor, QualityConfig
+from app.vision.recognizer import FaceRecognizer
 from app.vision.sface import SFaceConfig, SFaceEmbedder
 from app.vision.tracker import FaceTracker
 from app.vision.yunet import YuNetConfig, YuNetFaceDetector
@@ -90,3 +94,19 @@ def create_face_embedder(settings: Settings) -> FaceEmbedder | None:
         intra_op_num_threads=settings.face_embedding_threads,
     )
     return SFaceEmbedder(engine, SFaceConfig())
+
+
+def create_face_recognizer(
+    settings: Settings,
+    database: Database,
+) -> FaceRecognizer | None:
+    if not settings.face_recognition_enabled:
+        return None
+    logger.info(
+        "Face recognizer ready threshold=%.6f gallery=sqlite",
+        settings.face_recognition_threshold,
+    )
+    return GalleryFaceRecognizer(
+        SqlAlchemyGalleryStore(database),
+        threshold=settings.face_recognition_threshold,
+    )

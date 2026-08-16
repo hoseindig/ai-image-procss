@@ -17,6 +17,7 @@ from app.vision.factory import (
     create_face_quality_assessor,
     create_face_tracker,
 )
+from app.vision.recognizer import FaceRecognizer
 from app.vision.types import DetectionSnapshot
 from app.vision.worker import DetectionWorker, FrameGetter
 
@@ -33,11 +34,13 @@ class DetectionRuntime:
         camera_manager: CameraManager,
         *,
         embedder: FaceEmbedder | None = None,
+        recognizer: FaceRecognizer | None = None,
     ) -> None:
         self._detector = detector
         self._settings = settings
         self._camera_manager = camera_manager
         self._embedder = embedder
+        self._recognizer = recognizer
         self._lock = threading.RLock()
         self._workers: dict[str, DetectionWorker] = {}
 
@@ -79,6 +82,16 @@ class DetectionRuntime:
         provider = getattr(self._embedder, "provider", None)
         return provider if isinstance(provider, str) else None
 
+    @property
+    def recognition_enabled(self) -> bool:
+        return self._settings.face_recognition_enabled and self._recognizer is not None
+
+    @property
+    def recognition_threshold(self) -> float | None:
+        if not self.recognition_enabled:
+            return None
+        return self._settings.face_recognition_threshold
+
     def attach(self, camera_id: str) -> None:
         if not self.enabled or self._detector is None:
             return
@@ -98,6 +111,7 @@ class DetectionRuntime:
                 quality_assessor=create_face_quality_assessor(self._settings),
                 aligner=create_face_aligner(self._settings),
                 embedder=self._embedder,
+                recognizer=self._recognizer,
             )
             self._workers[camera_id] = worker
         worker.start()

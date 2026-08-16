@@ -2,7 +2,7 @@
 
 Local, CPU-only face detection and recognition for a USB webcam. No cloud AI APIs and no paid services.
 
-This repository is being built in gated phases. **Phases 0–7A are implemented** (backend, USB camera, YuNet, tracking, quality/alignment, SFace embedding, person enrollment / face gallery). Recognition matching and the frontend are not in this phase.
+This repository is being built in gated phases. **Phases 0–7B are implemented** (backend, USB camera, YuNet, tracking, quality/alignment, SFace embedding, person enrollment, gallery recognition). Events/frontend are not in this phase.
 
 
 
@@ -99,6 +99,13 @@ CPU baseline (no webcam):
 .\.venv\Scripts\python.exe scripts/benchmark_face_tracking.py
 .\.venv\Scripts\python.exe scripts/benchmark_face_quality.py
 .\.venv\Scripts\python.exe scripts/benchmark_face_embedding.py
+.\.venv\Scripts\python.exe scripts/benchmark_face_recognition.py
+```
+
+Recognition overlay (enroll a person first; similarity is not a percentage):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/test_webcam.py --show-recognition --log-quality
 ```
 
 Embedding overlay (metadata only):
@@ -134,7 +141,8 @@ ruff format .
 | Face quality & alignment | Phase 5 (done) |
 | Face embedding (SFace) | Phase 6 (done) |
 | Person enrollment / face gallery | Phase 7A (done) |
-| Recognition / Known vs Unknown | Phase 7B+ |
+| Face recognition / matching | Phase 7B (done) |
+| Events / Known vs Unknown logging | Phase 8+ |
 | Frontend | Phase 9 |
 | Model download | Phases 3+6 (done; `scripts/download_models.py`) |
 | E2E tests | Phase 10 |
@@ -149,6 +157,7 @@ ruff format .
 - [Face quality & alignment](docs/FACE_QUALITY.md)
 - [Face embedding](docs/FACE_EMBEDDING.md)
 - [Person enrollment](docs/PERSON_ENROLLMENT.md)
+- [Face recognition](docs/FACE_RECOGNITION.md)
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 
 ## Troubleshooting camera access / CPU tuning

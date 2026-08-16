@@ -60,6 +60,8 @@ class SystemStatusService:
                 alignment_enabled=detection_runtime.alignment_enabled,
                 embedding_enabled=detection_runtime.embedding_enabled,
                 embedding_provider=detection_runtime.embedding_provider,
+                recognition_enabled=detection_runtime.recognition_enabled,
+                recognition_threshold=detection_runtime.recognition_threshold,
             ),
         )
 

@@ -16,7 +16,11 @@ from app.core.exceptions import register_exception_handlers
 from app.core.logging import get_logger, setup_logging
 from app.db.session import Database
 from app.vision.detector import FaceDetector
-from app.vision.factory import create_face_detector, create_face_embedder
+from app.vision.factory import (
+    create_face_detector,
+    create_face_embedder,
+    create_face_recognizer,
+)
 from app.vision.runtime import DetectionRuntime
 
 
@@ -44,11 +48,19 @@ def create_app(
         detector = face_detector
         if detector is None and resolved.face_detection_enabled:
             detector = create_face_detector(resolved)
+        database = Database(resolved.database_url)
         embedder = create_face_embedder(resolved)
-        runtime = DetectionRuntime(detector, resolved, manager, embedder=embedder)
+        recognizer = create_face_recognizer(resolved, database)
+        runtime = DetectionRuntime(
+            detector,
+            resolved,
+            manager,
+            embedder=embedder,
+            recognizer=recognizer,
+        )
         app.state.settings = resolved
         app.state.started_at = datetime.now(UTC)
-        app.state.database = Database(resolved.database_url)
+        app.state.database = database
         app.state.camera_manager = manager
         app.state.detection_runtime = runtime
         logger.info("Application started (%s)", resolved.app_env)
@@ -57,9 +69,7 @@ def create_app(
         finally:
             runtime.shutdown()
             manager.shutdown()
-            database = getattr(app.state, "database", None)
-            if isinstance(database, Database):
-                database.dispose()
+            database.dispose()
             logger.info("Application stopped")
 
     application = FastAPI(

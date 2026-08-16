@@ -1,6 +1,6 @@
-# Setup (Phase 7A)
+# Setup (Phase 7B)
 
-Phase 7A runs the FastAPI backend with USB webcam capture, YuNet detection, IoU tracking, face quality/alignment, SFace embedding, and **SQLite person enrollment / face gallery**. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the model files are installed.
+Phase 7B runs the FastAPI backend with USB webcam capture, YuNet detection, IoU tracking, face quality/alignment, SFace embedding, SQLite person enrollment, and **local gallery recognition**. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the model files are installed.
 
 Automated tests **do not** need a physical webcam. A fake camera and a fake detector are used instead. Tests that need the real ONNX file are skipped if it is not present.
 
@@ -105,6 +105,8 @@ Settings are loaded from, in order of precedence:
 | `FACE_EMBEDDING_ENABLED` | `true` | Load SFace and embed accepted aligned faces |
 | `FACE_EMBEDDING_MODEL_PATH` | `models/face/sface/2021dec.onnx` | Relative paths resolve from the **project root** |
 | `FACE_EMBEDDING_THREADS` | `2` | ONNX Runtime intra-op threads for SFace |
+| `FACE_RECOGNITION_ENABLED` | `true` | Compare embeddings to the active enrollment gallery |
+| `FACE_RECOGNITION_THRESHOLD` | `0.363` | Cosine match when similarity ≥ threshold (engineering default; see `docs/FACE_RECOGNITION.md`) |
 
 Do not commit `.env`.
 
@@ -242,12 +244,19 @@ CPU baseline (blank/synthetic frames, no webcam):
 .\.venv\Scripts\python.exe scripts/benchmark_face_tracking.py
 .\.venv\Scripts\python.exe scripts/benchmark_face_quality.py
 .\.venv\Scripts\python.exe scripts/benchmark_face_embedding.py
+.\.venv\Scripts\python.exe scripts/benchmark_face_recognition.py
 ```
 
 SFace overlay (metadata only, no raw vector):
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/test_webcam.py --show-embedding
+```
+
+Recognition overlay (enroll first; similarity is not a percentage):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/test_webcam.py --show-recognition --log-quality
 ```
 
 Requested resolution/FPS are hints. The printed “actual” size is what the driver provided.
@@ -264,7 +273,7 @@ Requested resolution/FPS are hints. The printed “actual” size is what the dr
 
 `GET /api/system/status` `camera.available` means a camera is **registered** and not in an error state. It does not open the device. A real open happens only on `POST /api/cameras/{id}/start` or `scripts/test_webcam.py`.
 
-## Development flow (Phase 7A)
+## Development flow (Phase 7B)
 
 1. Create/activate `backend/.venv` (Windows PowerShell or Linux bash)
 2. `pip install -e ".[dev]"`
@@ -273,9 +282,9 @@ Requested resolution/FPS are hints. The printed “actual” size is what the dr
 5. `alembic upgrade head` (creates `persons` / `enrollment_samples`)
 6. `pytest`, `ruff check .`, `ruff format --check .`, `mypy .`
 7. `python -m app`
-8. Optional: create a person via `POST /api/persons` (see `docs/PERSON_ENROLLMENT.md`)
-9. Optional: `scripts/test_webcam.py --show-embedding`
-10. Optional: `scripts/benchmark_face_embedding.py`
+8. Create a person + enrollment (`docs/PERSON_ENROLLMENT.md`)
+9. Optional: `scripts/test_webcam.py --show-recognition`
+10. Optional: `scripts/benchmark_face_recognition.py`
 
 ## Lint
 
