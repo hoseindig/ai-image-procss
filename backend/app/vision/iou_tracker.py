@@ -77,8 +77,8 @@ class IoUCentroidFaceTracker:
             if track.missed_frames <= self._config.max_missed_frames:
                 surviving.append(track)
             else:
-                logger.info(
-                    "Track removed id=%s age_frames=%s",
+                logger.debug(
+                    "Track removed track_id=%s age_frames=%s",
                     track.track_id,
                     track.age_frames,
                 )
@@ -108,7 +108,7 @@ class IoUCentroidFaceTracker:
             )
             self._next_id += 1
             self._tracks.append(created)
-            logger.info("Track created id=%s", created.track_id)
+            logger.debug("Track created track_id=%s", created.track_id)
 
         self._tracks.sort(key=lambda item: item.track_id)
         return [track.snapshot() for track in self._tracks]

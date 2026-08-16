@@ -26,7 +26,6 @@ from app.core.logging import get_logger
 
 logger = get_logger("app.camera")
 
-_MAX_CONSECUTIVE_READ_FAILURES = 30
 _THREAD_JOIN_TIMEOUT_SECONDS = 5.0
 
 
@@ -105,15 +104,21 @@ class UsbCameraSource:
         self._actual_fps = config.fps
         self._last_frame_at: datetime | None = None
         self._frames = LatestFrameSlot()
+        self._max_read_failures = config.max_consecutive_read_failures
 
     def open(self) -> None:
         with self._lock:
             if self._state in {CameraState.OPEN, CameraState.RUNNING, CameraState.STOPPED}:
                 raise CameraInvalidStateError(f"Camera '{self._config.camera_id}' is already open")
+            if self._state == CameraState.ERROR:
+                raise CameraInvalidStateError(
+                    f"Camera '{self._config.camera_id}' is in ERROR; close before open "
+                    "(or use recover-on-start)"
+                )
             self._state = CameraState.OPENING
             self._error = None
             logger.info(
-                "Opening USB camera id=%s index=%s requested=%sx%s@%s",
+                "Opening USB camera camera_id=%s index=%s requested=%sx%s@%s",
                 self._config.camera_id,
                 self._config.device_index,
                 self._config.width,
@@ -127,7 +132,7 @@ class UsbCameraSource:
                 self._capture = capture
                 self._state = CameraState.OPEN
                 logger.info(
-                    "USB camera opened id=%s actual=%sx%s@%s",
+                    "USB camera opened camera_id=%s actual=%sx%s@%s",
                     self._config.camera_id,
                     self._actual_width,
                     self._actual_height,
@@ -142,7 +147,9 @@ class UsbCameraSource:
                 self._release_capture()
                 self._state = CameraState.ERROR
                 self._error = "Failed to open camera"
-                logger.exception("Unexpected error opening camera %s", self._config.camera_id)
+                logger.exception(
+                    "Unexpected error opening camera camera_id=%s", self._config.camera_id
+                )
                 raise CameraOpenError("Failed to open camera") from exc
 
     def start(self) -> None:
@@ -162,8 +169,9 @@ class UsbCameraSource:
             )
             self._thread = thread
             self._state = CameraState.RUNNING
+            self._error = None
         thread.start()
-        logger.info("Camera started id=%s", self._config.camera_id)
+        logger.info("Camera started camera_id=%s", self._config.camera_id)
 
     def read(self) -> Frame | None:
         with self._lock:
@@ -175,19 +183,30 @@ class UsbCameraSource:
 
     def stop(self) -> None:
         with self._lock:
-            if self._state != CameraState.RUNNING:
+            if self._state == CameraState.ERROR:
+                # Capture thread already exited; join if needed and leave ERROR for recovery.
+                thread = self._thread
+                self._stop_event.set()
+            elif self._state != CameraState.RUNNING:
                 raise CameraInvalidStateError(f"Camera '{self._config.camera_id}' is not running")
-            self._stop_event.set()
-            thread = self._thread
+            else:
+                self._stop_event.set()
+                thread = self._thread
         if thread is not None:
             thread.join(timeout=_THREAD_JOIN_TIMEOUT_SECONDS)
             if thread.is_alive():
-                logger.error("Camera thread did not stop in time id=%s", self._config.camera_id)
+                logger.error(
+                    "Camera thread did not stop in time camera_id=%s", self._config.camera_id
+                )
         with self._lock:
             self._thread = None
             if self._state == CameraState.RUNNING:
                 self._state = CameraState.STOPPED
-            logger.info("Camera stopped id=%s", self._config.camera_id)
+            logger.info(
+                "Camera stopped camera_id=%s state=%s",
+                self._config.camera_id,
+                self._state.value,
+            )
 
     def close(self) -> None:
         with self._lock:
@@ -196,18 +215,20 @@ class UsbCameraSource:
             running = self._state == CameraState.RUNNING
             self._stop_event.set()
             thread = self._thread
-        if running and thread is not None:
+        if (running or thread is not None) and thread is not None:
             thread.join(timeout=_THREAD_JOIN_TIMEOUT_SECONDS)
             if thread.is_alive():
                 logger.error(
-                    "Camera thread did not stop during close id=%s", self._config.camera_id
+                    "Camera thread did not stop during close camera_id=%s",
+                    self._config.camera_id,
                 )
         with self._lock:
             self._thread = None
             self._release_capture()
             self._frames.clear()
             self._state = CameraState.CLOSED
-            logger.info("Camera closed id=%s", self._config.camera_id)
+            self._error = None
+            logger.info("Camera closed camera_id=%s", self._config.camera_id)
 
     def is_open(self) -> bool:
         return self._state in {CameraState.OPEN, CameraState.RUNNING, CameraState.STOPPED}
@@ -257,14 +278,14 @@ class UsbCameraSource:
             actual = capture.get(prop)
             if not applied:
                 logger.warning(
-                    "Camera id=%s rejected %s=%s (driver returned false)",
+                    "Camera camera_id=%s rejected %s=%s (driver returned false)",
                     self._config.camera_id,
                     name,
                     value,
                 )
             elif abs(actual - value) > 1.0:
                 logger.warning(
-                    "Camera id=%s %s requested=%s actual=%s",
+                    "Camera camera_id=%s %s requested=%s actual=%s",
                     self._config.camera_id,
                     name,
                     value,
@@ -304,22 +325,28 @@ class UsbCameraSource:
             try:
                 ok, image = capture.read()
             except Exception:
-                logger.exception("Camera read raised id=%s", self._config.camera_id)
+                logger.exception("Camera read raised camera_id=%s", self._config.camera_id)
                 ok, image = False, None
             if not ok or image is None:
                 failures += 1
-                if failures >= _MAX_CONSECUTIVE_READ_FAILURES:
+                if failures >= self._max_read_failures:
                     message = "Camera stopped returning frames"
-                    logger.error("Camera read failed id=%s", self._config.camera_id)
+                    logger.error(
+                        "Camera read failed camera_id=%s consecutive_failures=%s "
+                        "error_code=camera_read_failed",
+                        self._config.camera_id,
+                        failures,
+                    )
                     with self._lock:
                         self._state = CameraState.ERROR
                         self._error = message
+                        self._release_capture()
                     break
                 time.sleep(0.05)
                 continue
             failures = 0
             self._store_frame(image)
-        logger.info("Capture loop exiting id=%s", self._config.camera_id)
+        logger.info("Capture loop exiting camera_id=%s", self._config.camera_id)
 
     def _release_capture(self) -> None:
         capture = self._capture
@@ -328,4 +355,4 @@ class UsbCameraSource:
             try:
                 capture.release()
             except Exception:
-                logger.exception("Error releasing camera id=%s", self._config.camera_id)
+                logger.exception("Error releasing camera camera_id=%s", self._config.camera_id)

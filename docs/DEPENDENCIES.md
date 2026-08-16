@@ -1,4 +1,6 @@
-# Dependencies (Phase 9)
+# Dependencies (Phase 11)
+
+Phase 11 does not add PostgreSQL, Redis, WebSockets, or GPU packages.
 
 ## Backend (Python)
 

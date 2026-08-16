@@ -75,6 +75,11 @@ def create_app(
             database,
             EventServiceConfig(enabled=False),
         )
+        if event_service is not None:
+            try:
+                event_service.purge_expired_events()
+            except Exception:
+                logger.exception("Event retention purge failed at startup")
         logger.info("Application started (%s)", resolved.app_env)
         try:
             yield

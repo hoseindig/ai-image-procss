@@ -79,6 +79,9 @@ class FakeCameraSource:
         return self._frame
 
     def stop(self) -> None:
+        if self._state == CameraState.ERROR:
+            # Mirror USB: allow stop after read failure so close can follow.
+            return
         if self._state != CameraState.RUNNING:
             raise CameraInvalidStateError(f"Camera '{self._config.camera_id}' is not running")
         self._state = CameraState.STOPPED

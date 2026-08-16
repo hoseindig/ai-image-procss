@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response, status
 
 from app.api.deps import (
     CameraManagerDep,
@@ -11,15 +11,30 @@ from app.api.deps import (
     SettingsDep,
     StartedAtDep,
 )
-from app.schemas.health import HealthResponse, SystemStatusResponse
-from app.services.system import HealthService, SystemStatusService
+from app.schemas.health import HealthResponse, ReadyResponse, SystemStatusResponse
+from app.services.system import HealthService, ReadyService, SystemStatusService
 
 router = APIRouter(tags=["system"])
 
 
 @router.get("/health")
 def get_health() -> HealthResponse:
+    """Liveness: process is up. Does not require database, models, or camera."""
     return HealthService().get_health()
+
+
+@router.get("/ready")
+def get_ready(
+    settings: SettingsDep,
+    session: SessionDep,
+    detection_runtime: DetectionRuntimeDep,
+    response: Response,
+) -> ReadyResponse:
+    """Readiness: database reachable and required models loaded when features enabled."""
+    body = ReadyService(settings).get_ready(session, detection_runtime)
+    if body.status != "ready":
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return body
 
 
 @router.get("/system/status")

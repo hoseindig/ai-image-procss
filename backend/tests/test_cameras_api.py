@@ -57,17 +57,18 @@ def test_start_and_stop_camera(camera_client: TestClient) -> None:
     assert stopped.json()["state"] == CameraState.CLOSED
 
 
-def test_double_start_conflict(camera_client: TestClient) -> None:
+def test_double_start_is_idempotent(camera_client: TestClient) -> None:
     assert camera_client.post("/api/cameras/default/start").status_code == 200
     again = camera_client.post("/api/cameras/default/start")
-    assert again.status_code == 409
-    assert again.json()["error"]["code"] == "camera_already_running"
+    assert again.status_code == 200
+    assert again.json()["state"] == CameraState.RUNNING
     camera_client.post("/api/cameras/default/stop")
 
 
-def test_stop_when_not_running(camera_client: TestClient) -> None:
+def test_stop_when_already_closed_is_idempotent(camera_client: TestClient) -> None:
     response = camera_client.post("/api/cameras/default/stop")
-    assert response.status_code == 409
+    assert response.status_code == 200
+    assert response.json()["state"] == CameraState.CLOSED
 
 
 def test_detections_when_disabled(camera_client: TestClient) -> None:

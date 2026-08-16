@@ -9,6 +9,19 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
 
 
+class ReadyCheck(BaseModel):
+    ok: bool
+    detail: str | None = None
+
+
+class ReadyResponse(BaseModel):
+    status: Literal["ready", "not_ready"]
+    database: ReadyCheck
+    models: ReadyCheck
+    # Camera is operational state, not a readiness gate for the process.
+    camera_required_for_ready: Literal[False] = False
+
+
 class DatabaseStatus(BaseModel):
     connected: bool
 
@@ -41,3 +54,4 @@ class SystemStatusResponse(BaseModel):
     database: DatabaseStatus
     camera: CameraHealthStatus
     face_detection: FaceDetectionHealthStatus
+    ready: bool = False

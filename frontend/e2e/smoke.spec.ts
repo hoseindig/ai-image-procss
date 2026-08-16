@@ -64,6 +64,7 @@ async function stubBackend(page: Page) {
         recognition_threshold: 0.363,
         event_logging_enabled: true,
       },
+      ready: true,
     }),
   );
 

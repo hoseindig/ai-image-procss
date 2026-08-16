@@ -9,6 +9,16 @@ def test_health_returns_ok(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_ready_when_features_disabled(client: TestClient) -> None:
+    response = client.get("/api/ready")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ready"
+    assert body["database"]["ok"] is True
+    assert body["models"]["ok"] is True
+    assert body["camera_required_for_ready"] is False
+
+
 def test_system_status_returns_ok(client: TestClient) -> None:
     response = client.get("/api/system/status")
     assert response.status_code == 200
@@ -32,5 +42,6 @@ def test_system_status_returns_ok(client: TestClient) -> None:
     assert body["face_detection"]["recognition_enabled"] is False
     assert body["face_detection"]["recognition_threshold"] is None
     assert body["face_detection"]["event_logging_enabled"] is False
+    assert body["ready"] is True
     assert "database_url" not in body
     assert "DATABASE_URL" not in response.text

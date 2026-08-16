@@ -236,3 +236,84 @@ def test_events_api_bad_page_size(event_client: TestClient) -> None:
     response = event_client.get("/api/events", params={"page_size": 9999})
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "event_validation_error"
+
+
+def test_event_retention_purges_old_events_only(database: Database) -> None:
+    from datetime import UTC, datetime, timedelta
+    from uuid import uuid4
+
+    from app.events.repository import EventRepository
+    from app.models.event import Event
+
+    service = EventService(
+        database,
+        EventServiceConfig(
+            enabled=True,
+            recognized_cooldown_seconds=0.0,
+            unknown_cooldown_seconds=0.0,
+            retention_days=30,
+            retention_enabled=True,
+        ),
+    )
+    now = datetime.now(UTC)
+    old = Event(
+        id=str(uuid4()),
+        event_type=EventType.RECOGNIZED.value,
+        camera_id="cam-1",
+        track_id=1,
+        person_id="person-a",
+        enrollment_id="enroll-a",
+        similarity=0.9,
+        occurred_at=now - timedelta(days=60),
+        created_at=now - timedelta(days=60),
+    )
+    recent = Event(
+        id=str(uuid4()),
+        event_type=EventType.UNKNOWN_FACE.value,
+        camera_id="cam-1",
+        track_id=2,
+        person_id=None,
+        enrollment_id=None,
+        similarity=0.1,
+        occurred_at=now - timedelta(days=1),
+        created_at=now - timedelta(days=1),
+    )
+    with database.session() as session:
+        EventRepository(session).add(old)
+        EventRepository(session).add(recent)
+
+    deleted = service.purge_expired_events(now=now)
+    assert deleted == 1
+    listed = service.list_events()
+    assert listed.total == 1
+    assert listed.items[0].event_type is EventType.UNKNOWN_FACE
+
+
+def test_event_retention_disabled_is_noop(database: Database) -> None:
+    from datetime import UTC, datetime, timedelta
+    from uuid import uuid4
+
+    from app.events.repository import EventRepository
+    from app.models.event import Event
+
+    service = EventService(
+        database,
+        EventServiceConfig(enabled=True, retention_days=1, retention_enabled=False),
+    )
+    now = datetime.now(UTC)
+    with database.session() as session:
+        EventRepository(session).add(
+            Event(
+                id=str(uuid4()),
+                event_type=EventType.UNKNOWN_FACE.value,
+                camera_id="cam-1",
+                track_id=1,
+                person_id=None,
+                enrollment_id=None,
+                similarity=0.1,
+                occurred_at=now - timedelta(days=10),
+                created_at=now - timedelta(days=10),
+            )
+        )
+    assert service.purge_expired_events(now=now) == 0
+    assert service.list_events().total == 1

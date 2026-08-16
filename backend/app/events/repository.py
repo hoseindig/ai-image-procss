@@ -24,6 +24,16 @@ class EventRepository:
     def get(self, event_id: str) -> Event | None:
         return self._session.get(Event, event_id)
 
+    def delete_older_than(self, cutoff: datetime) -> int:
+        """Delete events with occurred_at strictly before cutoff. Returns row count."""
+        from sqlalchemy import CursorResult, delete
+
+        result = self._session.execute(delete(Event).where(Event.occurred_at < cutoff))
+        self._session.commit()
+        if isinstance(result, CursorResult):
+            return int(result.rowcount or 0)
+        return 0
+
     def list_events(
         self,
         *,

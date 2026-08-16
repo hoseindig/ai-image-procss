@@ -267,6 +267,18 @@ export interface HealthResponse {
   status: "ok";
 }
 
+export interface ReadyCheck {
+  ok: boolean;
+  detail: string | null;
+}
+
+export interface ReadyResponse {
+  status: "ready" | "not_ready";
+  database: ReadyCheck;
+  models: ReadyCheck;
+  camera_required_for_ready: false;
+}
+
 export interface DatabaseStatus {
   connected: boolean;
 }
@@ -299,6 +311,7 @@ export interface SystemStatus {
   database: DatabaseStatus;
   camera: CameraHealthStatus;
   face_detection: FaceDetectionHealthStatus;
+  ready: boolean;
 }
 
 export interface ApiErrorBody {

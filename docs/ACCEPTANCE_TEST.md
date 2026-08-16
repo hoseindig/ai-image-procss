@@ -1,4 +1,6 @@
-# Acceptance Test (Phase 10.5)
+# Acceptance Test
+
+Manual **Hardware E2E** acceptance checklist (Phase 10.5) plus **Phase 11** hardening report.
 
 Manual **Hardware E2E** acceptance checklist for the integrated face-recognition system.
 
@@ -190,3 +192,69 @@ All listed **known/matched** scores are ≥ threshold **0.363**. Similarity is r
 Use: **PASS** / **FAIL** / **BLOCKED** / **NOT RUN** only.
 
 Do not mark overall Hardware E2E / Phase 10.5 **PASS** unless C–I (including unknown path) are **PASS**.
+
+---
+
+# Phase 11 — Production Hardening & Observability
+
+**Date:** 2026-08-16  
+**Scope:** Config validation, structured logging, camera/worker lifecycle, event retention, health/readiness, ops docs.  
+**Non-goals preserved:** no plates, GPU, PostgreSQL, Redis, WebSockets, recording, liveness.
+
+## Automated tests
+
+| Check | Status | Notes |
+| --- | --- | --- |
+| Backend pytest | **PASS** (219) | Includes Phase 11 hardening + retention |
+| Ruff / format / mypy | **PASS** | |
+| Frontend Vitest | **PASS** (20) | |
+| Frontend lint / typecheck / build | **PASS** | |
+| Automated Known Recognition | **PASS** | In pytest suite |
+| Automated Unknown Recognition | **PASS** | In pytest suite |
+| Recognized / Unknown Events | **PASS** | In pytest suite |
+| Event Cooldowns | **PASS** | In pytest suite |
+| Browser Playwright E2E | **BLOCKED** | Chromium headless shell not installed (`Executable doesn't exist`); also port 3000 conflict during attempt |
+
+## Camera / recognition / hardware
+
+| Item | Status |
+| --- | --- |
+| Hardware Known Recognition | PASS (Phase 10.5; not re-run in Phase 11 unless noted) |
+| Hardware Unknown Recognition | PARTIAL / BLOCKED (`PHOTO_QUALITY_BLOCKED`) |
+| Liveness / Anti-Spoofing | NOT IMPLEMENTED / NOT TESTED |
+| Camera recover-on-start | TESTED (unit/fake) |
+| USB consecutive read → ERROR | TESTED (fake capture) |
+| Worker start/stop cycles | TESTED |
+
+## Platform
+
+| Item | Status |
+| --- | --- |
+| Windows startup (`npm run setup` / `db:migrate` / `dev`) | TESTED (prior; re-verify after changes) |
+| Linux instructions | DOCUMENTED (syntax-portable bash); Linux webcam **NOT HARDWARE-TESTED** |
+
+## Security
+
+| Item | Status |
+| --- | --- |
+| Local security review | Completed — see `docs/SECURITY.md` |
+| Test endpoint default off | PASS |
+| No embeddings in GET APIs / logs | PASS |
+| Production forbids DEBUG + RECOGNITION_TEST_MODE | PASS |
+
+## Performance
+
+| Item | Status |
+| --- | --- |
+| Premature optimization | Not done (by design) |
+| Pipeline architecture | Latest-frame size-1 preserved |
+| CPU target (i7-13700H / 16 GB / single webcam) | DOCUMENTED in `docs/OPERATIONS.md` |
+| Fresh latency numbers this phase | NOT MEASURED (use `backend/scripts/benchmark_*.py`) |
+
+## Final Phase 11 gate
+
+Automated gates **PASS**. Documentation complete. Camera recover/worker/retention covered by unit tests. Playwright **BLOCKED**. Hardware unknown remains **PARTIAL** from Phase 10.5 (not re-run). Fresh CPU latency benchmarks **NOT MEASURED** this phase.
+
+**Phase 11 overall: PASS** (with honest BLOCKED/PARTIAL/NOT MEASURED items above)
+
+**Do not proceed to Phase 12 automatically.**

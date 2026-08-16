@@ -123,10 +123,14 @@ def create_event_service(settings: Settings, database: Database) -> EventService
         default_page_size=settings.event_api_default_page_size,
         max_page_size=settings.event_api_max_page_size,
         retention_days=settings.event_retention_days,
+        retention_enabled=settings.event_retention_enabled,
     )
     logger.info(
-        "Event service ready recognized_cooldown_s=%.1f unknown_cooldown_s=%.1f",
+        "Event service ready recognized_cooldown_s=%.1f unknown_cooldown_s=%.1f "
+        "retention_days=%s retention_enabled=%s",
         config.recognized_cooldown_seconds,
         config.unknown_cooldown_seconds,
+        config.retention_days,
+        config.retention_enabled,
     )
     return EventService(database, config)

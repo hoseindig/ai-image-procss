@@ -396,7 +396,7 @@ def test_integration_embed_gallery_recognize_event(database: Database) -> None:
         )
         person_id = person.id
 
-    service = _test_service(database, embedder, recognized_cd=0.05, unknown_cd=0.05)
+    service = _test_service(database, embedder, recognized_cd=10.0, unknown_cd=10.0)
     known = service.recognize_aligned_bgr(face_a, camera_id="test", track_id=1)
     assert known.status == "matched"
     assert known.person_id == person_id
@@ -404,7 +404,8 @@ def test_integration_embed_gallery_recognize_event(database: Database) -> None:
     assert (
         service.recognize_aligned_bgr(face_a, camera_id="test", track_id=1).event_created is False
     )
-    time.sleep(0.06)
+    assert service._event_service is not None  # noqa: SLF001
+    service._event_service.clear_cooldowns()  # noqa: SLF001
     assert service.recognize_aligned_bgr(face_a, camera_id="test", track_id=1).event_created is True
 
     unknown = service.recognize_aligned_bgr(face_b, camera_id="test", track_id=2)

@@ -117,19 +117,33 @@ class Settings(BaseSettings):
     event_logging_enabled: bool = Field(default=True)
     event_recognized_cooldown_seconds: float = Field(default=10.0, ge=0.0)
     event_unknown_cooldown_seconds: float = Field(default=10.0, ge=0.0)
-    # Future automatic cleanup; not enforced in Phase 8.
+    # Purge events older than this many days on application startup (people/enrollments kept).
     event_retention_days: int = Field(default=90, ge=1)
+    event_retention_enabled: bool = Field(default=True)
     event_api_default_page_size: int = Field(default=50, ge=1, le=500)
     event_api_max_page_size: int = Field(default=200, ge=1, le=1000)
     # TEST ONLY. Default false. Never enable automatically for production webcam use.
     # Gates POST /api/test/recognize and RecognitionTestService.
     recognition_test_mode: bool = Field(default=False)
+    # When true, POST /cameras/{id}/start recovers from ERROR/CLOSED by close→open→start.
+    # Not a background reconnect loop.
+    camera_recover_on_start: bool = Field(default=True)
+    # Consecutive failed VideoCapture.read() calls before ERROR (capture thread).
+    camera_max_consecutive_read_failures: int = Field(default=30, ge=1, le=1000)
 
     @field_validator("app_env", mode="before")
     @classmethod
     def normalize_app_env(cls, value: object) -> object:
         if isinstance(value, str):
             return value.strip().lower()
+        return value
+
+    @field_validator("app_env")
+    @classmethod
+    def validate_app_env(cls, value: str) -> str:
+        allowed = {"development", "test", "production"}
+        if value not in allowed:
+            raise ValueError(f"APP_ENV must be one of: {', '.join(sorted(allowed))}")
         return value
 
     @field_validator("log_level", mode="before")
@@ -188,6 +202,46 @@ class Settings(BaseSettings):
     def validate_event_page_sizes(self) -> Self:
         if self.event_api_default_page_size > self.event_api_max_page_size:
             raise ValueError("EVENT_API_DEFAULT_PAGE_SIZE must be <= EVENT_API_MAX_PAGE_SIZE")
+        return self
+
+    @model_validator(mode="after")
+    def validate_production_hardening(self) -> Self:
+        if self.app_env != "production":
+            return self
+        if self.debug:
+            raise ValueError("DEBUG must be false when APP_ENV=production")
+        if self.recognition_test_mode:
+            raise ValueError("RECOGNITION_TEST_MODE must be false when APP_ENV=production")
+        return self
+
+    @model_validator(mode="after")
+    def validate_enabled_model_paths(self) -> Self:
+        """Fail fast when required ONNX files are missing (not in APP_ENV=test)."""
+        if self.app_env == "test":
+            return self
+        checks: list[tuple[bool, str, str]] = [
+            (
+                self.face_detection_enabled,
+                self.face_detection_model_path,
+                "FACE_DETECTION_MODEL_PATH",
+            ),
+            (
+                self.face_embedding_enabled,
+                self.face_embedding_model_path,
+                "FACE_EMBEDDING_MODEL_PATH",
+            ),
+        ]
+        for enabled, relative, label in checks:
+            if not enabled:
+                continue
+            path = Path(relative)
+            if not path.is_absolute():
+                path = (PROJECT_ROOT / path).resolve()
+            if not path.is_file():
+                raise ValueError(
+                    f"{label} does not point to an existing file: {path}. "
+                    "Install models with: python scripts/download_models.py"
+                )
         return self
 
 

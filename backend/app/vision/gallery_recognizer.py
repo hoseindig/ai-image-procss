@@ -138,7 +138,8 @@ class GalleryFaceRecognizer:
 
         # Boundary: matched when similarity >= threshold (OpenCV FR_COSINE convention).
         if best_score >= self._threshold:
-            logger.info(
+            # Per-frame match details stay at DEBUG to avoid log floods.
+            logger.debug(
                 "Recognition matched track_id=%s person_id=%s enrollment_id=%s "
                 "similarity=%.6f threshold=%.6f",
                 track_id,
@@ -156,7 +157,7 @@ class GalleryFaceRecognizer:
                 enrollment_id=best_enrollment_id,
             )
 
-        logger.info(
+        logger.debug(
             "Recognition unknown track_id=%s similarity=%.6f threshold=%.6f reason=%s",
             track_id,
             best_score,

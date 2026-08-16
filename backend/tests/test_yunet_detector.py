@@ -34,6 +34,7 @@ def _config(
 def test_missing_model_path_fails_clearly(tmp_path: Path) -> None:
     missing = tmp_path / "missing.onnx"
     settings = IsolatedSettings(
+        app_env="test",
         face_detection_enabled=True,
         face_detection_model_path=str(missing),
         face_detection_input_width=320,

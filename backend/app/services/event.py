@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from app.core.logging import get_logger
@@ -50,8 +50,8 @@ class EventServiceConfig:
     unknown_cooldown_seconds: float = 10.0
     default_page_size: int = 50
     max_page_size: int = 200
-    # Configured for future cleanup; automatic deletion is not implemented in Phase 8.
     retention_days: int = 90
+    retention_enabled: bool = True
 
 
 def _utc_now() -> datetime:
@@ -230,3 +230,25 @@ class EventService:
         """Test helper: reset in-memory cooldown state."""
         with self._lock:
             self._last_emit.clear()
+
+    def purge_expired_events(self, *, now: datetime | None = None) -> int:
+        """Delete events older than retention_days. Never deletes people or enrollments.
+
+        Returns the number of deleted rows. No-op when retention is disabled.
+        """
+        if not self._config.retention_enabled:
+            logger.info("Event retention disabled; skipping purge")
+            return 0
+        when = now or _utc_now()
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=UTC)
+        cutoff = when - timedelta(days=self._config.retention_days)
+        with self._database.session() as session:
+            deleted = EventRepository(session).delete_older_than(cutoff)
+        logger.info(
+            "Event retention purge deleted=%s retention_days=%s cutoff=%s",
+            deleted,
+            self._config.retention_days,
+            cutoff.isoformat(),
+        )
+        return deleted

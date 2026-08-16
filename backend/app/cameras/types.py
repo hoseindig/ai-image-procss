@@ -36,6 +36,8 @@ class CameraConfig(BaseModel):
     height: int = Field(default=720, ge=1)
     fps: float = Field(default=15.0, gt=0)
     backend: str = Field(default="dshow")
+    # Consecutive failed VideoCapture.read() calls before ERROR (USB capture thread).
+    max_consecutive_read_failures: int = Field(default=30, ge=1, le=1000)
 
 
 class CameraStatus(BaseModel):

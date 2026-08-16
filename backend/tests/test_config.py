@@ -53,7 +53,7 @@ def test_memory_sqlite_url_is_unchanged() -> None:
 
 
 def test_face_detection_defaults() -> None:
-    settings = IsolatedSettings()
+    settings = IsolatedSettings(app_env="test")
     assert settings.face_detection_enabled is True
     assert settings.face_detection_model_path == "models/face/yunet/2023mar.onnx"
     assert settings.face_detection_confidence_threshold == 0.7
@@ -84,7 +84,33 @@ def test_face_detection_defaults() -> None:
     assert settings.event_recognized_cooldown_seconds == 10.0
     assert settings.event_unknown_cooldown_seconds == 10.0
     assert settings.event_retention_days == 90
+    assert settings.event_retention_enabled is True
+    assert settings.camera_recover_on_start is True
+    assert settings.camera_max_consecutive_read_failures == 30
     assert settings.recognition_test_mode is False
+
+
+def test_production_rejects_debug_and_test_mode() -> None:
+    with pytest.raises(ValidationError):
+        IsolatedSettings(
+            app_env="production",
+            debug=True,
+            face_detection_enabled=False,
+            face_embedding_enabled=False,
+        )
+    with pytest.raises(ValidationError):
+        IsolatedSettings(
+            app_env="production",
+            debug=False,
+            recognition_test_mode=True,
+            face_detection_enabled=False,
+            face_embedding_enabled=False,
+        )
+
+
+def test_invalid_app_env_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        IsolatedSettings(app_env="staging")
 
 
 def test_invalid_confidence_threshold_is_rejected() -> None:

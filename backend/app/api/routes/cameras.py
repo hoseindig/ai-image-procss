@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import CameraManagerDep, DetectionRuntimeDep
+from app.api.deps import CameraManagerDep, DetectionRuntimeDep, SettingsDep
 from app.cameras.mjpeg import CONTENT_TYPE
 from app.cameras.types import CameraStatus
 from app.schemas.camera import CameraListResponse
@@ -21,8 +21,9 @@ router = APIRouter(prefix="/cameras", tags=["cameras"])
 def get_camera_service(
     manager: CameraManagerDep,
     runtime: DetectionRuntimeDep,
+    settings: SettingsDep,
 ) -> CameraService:
-    return CameraService(manager, runtime)
+    return CameraService(manager, runtime, settings)
 
 
 def get_detection_service(

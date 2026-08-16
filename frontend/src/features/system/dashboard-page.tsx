@@ -75,6 +75,10 @@ export function DashboardPage() {
             {system.data ? (
               <>
                 <div className="flex items-center justify-between gap-2">
+                  <span>Ready</span>
+                  {statusBadge(system.data.ready, "ready", "not ready")}
+                </div>
+                <div className="flex items-center justify-between gap-2">
                   <span>Status</span>
                   {statusBadge(system.data.status === "ok", "ok", "degraded")}
                 </div>

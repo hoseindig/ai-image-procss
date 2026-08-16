@@ -1,4 +1,10 @@
-"""Centralized application logging using the standard library."""
+"""Centralized application logging using the standard library.
+
+Format is machine-parseable key=value style in the message body while keeping a
+stable prefix: timestamp | level | component | message.
+
+Never log embeddings, raw images, secrets, or credential material.
+"""
 
 from __future__ import annotations
 

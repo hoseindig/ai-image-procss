@@ -111,8 +111,6 @@ class DetectionWorker:
 
     def stop(self) -> None:
         with self._lock:
-            if not self._running:
-                return
             self._stop_event.set()
             thread = self._thread
         if thread is not None:
@@ -145,121 +143,125 @@ class DetectionWorker:
     def _run(self) -> None:
         last_infer = 0.0
         last_frame_at: datetime | None = None
-        while not self._stop_event.is_set():
-            now = time.monotonic()
-            remaining = self._interval_s - (now - last_infer)
-            if remaining > 0:
-                self._stop_event.wait(min(remaining, _IDLE_SLEEP_SECONDS))
-                continue
-            try:
-                frame = self._frame_getter()
-            except CameraError:
-                break
-            except Exception:
-                logger.exception(
-                    "Detection worker failed to read a frame camera_id=%s", self._camera_id
-                )
-                self._store_error("Failed to read camera frame")
-                self._stop_event.wait(_ERROR_BACKOFF_SECONDS)
-                continue
-            if frame is None:
-                self._stop_event.wait(_IDLE_SLEEP_SECONDS)
-                continue
-            if last_frame_at is not None and frame.timestamp == last_frame_at:
-                self._stop_event.wait(_IDLE_SLEEP_SECONDS)
-                continue
-            started = time.perf_counter()
-            try:
-                faces = self._detector.detect(frame)
-            except Exception as exc:
-                logger.exception("Face detection failed camera_id=%s", self._camera_id)
-                self._store_error(str(exc) or "Face detection failed")
-                last_infer = time.monotonic()
-                self._stop_event.wait(_ERROR_BACKOFF_SECONDS)
-                continue
-            inference_ms = (time.perf_counter() - started) * 1000.0
-            tracks: list[FaceTrack] = []
-            tracking_ms: float | None = None
-            if self._tracker is not None:
-                track_started = time.perf_counter()
-                try:
-                    tracks = self._tracker.update(faces)
-                except Exception as exc:
-                    logger.exception("Face tracking failed camera_id=%s", self._camera_id)
-                    self._store_error(str(exc) or "Face tracking failed")
-                    last_infer = time.monotonic()
-                    self._stop_event.wait(_ERROR_BACKOFF_SECONDS)
+        try:
+            while not self._stop_event.is_set():
+                now = time.monotonic()
+                remaining = self._interval_s - (now - last_infer)
+                if remaining > 0:
+                    self._stop_event.wait(min(remaining, _IDLE_SLEEP_SECONDS))
                     continue
-                tracking_ms = (time.perf_counter() - track_started) * 1000.0
-
-            qualities: list[FaceQuality] = []
-            aligned: list[AlignedFace] = []
-            embedding_infos: list[EmbeddingInfo] = []
-            embeddings: list[FaceEmbedding] = []
-            recognitions: list[RecognitionInfo] = []
-            quality_ms: float | None = None
-            alignment_ms: float | None = None
-            embedding_ms: float | None = None
-            recognition_ms: float | None = None
-            if (
-                self._quality_assessor is not None
-                or self._aligner is not None
-                or self._embedder is not None
-                or self._recognizer is not None
-            ):
                 try:
-                    (
-                        qualities,
-                        aligned,
-                        embedding_infos,
-                        embeddings,
-                        recognitions,
-                        quality_ms,
-                        alignment_ms,
-                        embedding_ms,
-                        recognition_ms,
-                    ) = self._post_track(frame, tracks)
-                except Exception as exc:
+                    frame = self._frame_getter()
+                except CameraError:
+                    break
+                except Exception:
                     logger.exception(
-                        "Face quality/alignment/embedding/recognition failed camera_id=%s",
-                        self._camera_id,
+                        "Detection worker failed to read a frame camera_id=%s", self._camera_id
                     )
-                    self._store_error(
-                        str(exc) or "Face quality/alignment/embedding/recognition failed"
-                    )
+                    self._store_error("Failed to read camera frame")
+                    self._stop_event.wait(_ERROR_BACKOFF_SECONDS)
+                    continue
+                if frame is None:
+                    self._stop_event.wait(_IDLE_SLEEP_SECONDS)
+                    continue
+                if last_frame_at is not None and frame.timestamp == last_frame_at:
+                    self._stop_event.wait(_IDLE_SLEEP_SECONDS)
+                    continue
+                started = time.perf_counter()
+                try:
+                    faces = self._detector.detect(frame)
+                except Exception as exc:
+                    logger.exception("Face detection failed camera_id=%s", self._camera_id)
+                    self._store_error(str(exc) or "Face detection failed")
                     last_infer = time.monotonic()
                     self._stop_event.wait(_ERROR_BACKOFF_SECONDS)
                     continue
+                inference_ms = (time.perf_counter() - started) * 1000.0
+                tracks: list[FaceTrack] = []
+                tracking_ms: float | None = None
+                if self._tracker is not None:
+                    track_started = time.perf_counter()
+                    try:
+                        tracks = self._tracker.update(faces)
+                    except Exception as exc:
+                        logger.exception("Face tracking failed camera_id=%s", self._camera_id)
+                        self._store_error(str(exc) or "Face tracking failed")
+                        last_infer = time.monotonic()
+                        self._stop_event.wait(_ERROR_BACKOFF_SECONDS)
+                        continue
+                    tracking_ms = (time.perf_counter() - track_started) * 1000.0
 
-            last_infer = time.monotonic()
-            last_frame_at = frame.timestamp
-            aligned_tuple = tuple(aligned)
-            embedding_tuple = tuple(embeddings)
-            aligned_ids = [item.source_track_id for item in aligned_tuple]
-            self._aligned.put(aligned_tuple)
-            self._embeddings.put(embedding_tuple)
-            self._results.put(
-                DetectionSnapshot(
-                    camera_id=self._camera_id,
-                    timestamp=frame.timestamp,
-                    faces=faces,
-                    tracks=tracks,
-                    qualities=qualities,
-                    embeddings=embedding_infos,
-                    recognitions=recognitions,
-                    inference_ms=inference_ms,
-                    tracking_ms=tracking_ms,
-                    quality_ms=quality_ms,
-                    alignment_ms=alignment_ms,
-                    embedding_ms=embedding_ms,
-                    recognition_ms=recognition_ms,
-                    aligned_count=len(aligned_tuple),
-                    aligned_track_ids=aligned_ids,
-                    embedded_count=len(embedding_tuple),
-                    error=None,
+                qualities: list[FaceQuality] = []
+                aligned: list[AlignedFace] = []
+                embedding_infos: list[EmbeddingInfo] = []
+                embeddings: list[FaceEmbedding] = []
+                recognitions: list[RecognitionInfo] = []
+                quality_ms: float | None = None
+                alignment_ms: float | None = None
+                embedding_ms: float | None = None
+                recognition_ms: float | None = None
+                if (
+                    self._quality_assessor is not None
+                    or self._aligner is not None
+                    or self._embedder is not None
+                    or self._recognizer is not None
+                ):
+                    try:
+                        (
+                            qualities,
+                            aligned,
+                            embedding_infos,
+                            embeddings,
+                            recognitions,
+                            quality_ms,
+                            alignment_ms,
+                            embedding_ms,
+                            recognition_ms,
+                        ) = self._post_track(frame, tracks)
+                    except Exception as exc:
+                        logger.exception(
+                            "Face quality/alignment/embedding/recognition failed camera_id=%s",
+                            self._camera_id,
+                        )
+                        self._store_error(
+                            str(exc) or "Face quality/alignment/embedding/recognition failed"
+                        )
+                        last_infer = time.monotonic()
+                        self._stop_event.wait(_ERROR_BACKOFF_SECONDS)
+                        continue
+
+                last_infer = time.monotonic()
+                last_frame_at = frame.timestamp
+                aligned_tuple = tuple(aligned)
+                embedding_tuple = tuple(embeddings)
+                aligned_ids = [item.source_track_id for item in aligned_tuple]
+                self._aligned.put(aligned_tuple)
+                self._embeddings.put(embedding_tuple)
+                self._results.put(
+                    DetectionSnapshot(
+                        camera_id=self._camera_id,
+                        timestamp=frame.timestamp,
+                        faces=faces,
+                        tracks=tracks,
+                        qualities=qualities,
+                        embeddings=embedding_infos,
+                        recognitions=recognitions,
+                        inference_ms=inference_ms,
+                        tracking_ms=tracking_ms,
+                        quality_ms=quality_ms,
+                        alignment_ms=alignment_ms,
+                        embedding_ms=embedding_ms,
+                        recognition_ms=recognition_ms,
+                        aligned_count=len(aligned_tuple),
+                        aligned_track_ids=aligned_ids,
+                        embedded_count=len(embedding_tuple),
+                        error=None,
+                    )
                 )
-            )
-        logger.info("Detection loop exiting camera_id=%s", self._camera_id)
+        finally:
+            with self._lock:
+                self._running = False
+            logger.info("Detection loop exiting camera_id=%s", self._camera_id)
 
     def _post_track(
         self,

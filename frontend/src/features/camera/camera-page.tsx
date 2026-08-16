@@ -18,8 +18,9 @@ import { MjpegPreview } from "@/features/camera/mjpeg-preview";
 import { isApiError } from "@/lib/api/client";
 import type { CameraState, FaceTrack } from "@/types/api";
 
-function cameraUiState(state: CameraState | undefined, pending: boolean): string {
+function cameraUiState(state: CameraState | undefined, pending: boolean, stopPending: boolean): string {
   if (pending) return "Starting";
+  if (stopPending) return "Stopping";
   switch (state) {
     case "running":
       return "Running";
@@ -27,7 +28,7 @@ function cameraUiState(state: CameraState | undefined, pending: boolean): string
     case "open":
       return "Starting";
     case "error":
-      return "Error";
+      return "Camera failure";
     case "stopped":
     case "closed":
       return "Stopped";
@@ -64,8 +65,12 @@ export function CameraPage() {
   if (cameras.isError) {
     return (
       <ErrorState
-        title="خطای دوربین"
-        message={isApiError(cameras.error) ? cameras.error.message : "Failed to load cameras"}
+        title="Backend unavailable"
+        message={
+          isApiError(cameras.error)
+            ? cameras.error.message
+            : "Cannot reach the backend. Check that npm run dev is running."
+        }
         onRetry={() => void cameras.refetch()}
       />
     );
@@ -75,7 +80,7 @@ export function CameraPage() {
     return <EmptyState title="دوربینی پیکربندی نشده است." />;
   }
 
-  const statusLabel = cameraUiState(camera.data?.state, start.isPending);
+  const statusLabel = cameraUiState(camera.data?.state, start.isPending, stop.isPending);
   const mutationError = start.error ?? stop.error;
 
   return (
@@ -92,7 +97,7 @@ export function CameraPage() {
             variant={
               statusLabel === "Running"
                 ? "success"
-                : statusLabel === "Error"
+                : statusLabel === "Camera failure"
                   ? "danger"
                   : "secondary"
             }
@@ -169,11 +174,22 @@ export function CameraPage() {
               <CardTitle>شناسایی</CardTitle>
             </CardHeader>
             <CardContent>
+              {running && detections.isError ? (
+                <ErrorState
+                  title="Recognition unavailable"
+                  message={
+                    isApiError(detections.error)
+                      ? detections.error.message
+                      : "Failed to load detection results"
+                  }
+                  onRetry={() => void detections.refetch()}
+                />
+              ) : null}
               {running && detections.isLoading ? <LoadingState /> : null}
               {!running ? (
                 <p className="text-sm text-muted-foreground">دوربین در حال اجرا نیست.</p>
               ) : null}
-              {running && !detections.isLoading && !primary ? (
+              {running && !detections.isLoading && !detections.isError && !primary ? (
                 <EmptyState title="چهره‌ای در فریم فعلی نیست." />
               ) : null}
               {primary ? (

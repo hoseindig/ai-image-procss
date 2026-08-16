@@ -28,6 +28,7 @@ def config_from_settings(settings: Settings) -> CameraConfig:
         height=settings.camera_height,
         fps=settings.camera_fps,
         backend=settings.camera_backend,
+        max_consecutive_read_failures=settings.camera_max_consecutive_read_failures,
     )
 
 

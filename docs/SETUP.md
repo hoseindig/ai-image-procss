@@ -1,12 +1,14 @@
-# Setup (Phase 10.5)
+# Setup (Phase 11)
 
 Integrated FastAPI backend + Next.js frontend. Prefer root **`npm run setup`** / **`npm run dev`** / **`npm run test:all`**.
 
-Phase 10.5 does **not** change YuNet/SFace/thresholds/cooldowns.
+Phase 11 adds production hardening (config fail-fast, readiness, camera recovery, event retention, ops docs). It does **not** change YuNet/SFace thresholds or cooldowns.
 
-**Tested environment:** Windows 11, Python 3.13, Node.js v24.18.1, Intel i7-13700H, CPU only.  
-**Documented:** Ubuntu LTS (same Python/venv and Node workflows; Linux webcam latency not re-measured).  
+**Tested environment:** Windows 11, Python 3.13, Node.js v24+, Intel i7-13700H, CPU only.  
+**Documented:** Ubuntu LTS (same Python/venv and Node workflows; Linux webcam latency **NOT HARDWARE-TESTED** in Phase 11).  
 **Hardware acceptance:** `docs/ACCEPTANCE_TEST.md` (separate from Playwright).
+
+Operational docs: `docs/OPERATIONS.md`, `docs/SECURITY.md`, `docs/TESTING.md`, `docs/TROUBLESHOOTING.md`.
 
 Automated backend tests **do not** need a physical webcam. Frontend unit tests mock the API. Playwright smoke tests stub `/backend` responses and do not require a webcam.
 
@@ -305,6 +307,12 @@ After Python install, model download, and `npm install`, runtime AI does not cal
 | --- | --- |
 | Frontend network_error | Backend not running or wrong `API_PROXY_TARGET` |
 | Preview blank / stopped | Camera not started |
+| Preview stream failed | Backend down mid-stream; use Retry or restart camera |
+| Camera failure badge | Capture entered ERROR; Start recovers when `CAMERA_RECOVER_ON_START=true` |
+| `/api/ready` 503 | Database down or required models not loaded |
+| Settings validation error | Invalid env (not clamped); see `.env.example` |
 | `409 camera_invalid_state` on preview | Start the camera first |
 | CORS errors | Prefer `/backend` proxy, or add origin to `CORS_ORIGINS` |
 | Enrollment 422 | Embedding must be exactly 128 floats; quality.accepted must be true |
+
+See also `docs/TROUBLESHOOTING.md`.

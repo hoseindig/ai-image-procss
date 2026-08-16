@@ -101,6 +101,7 @@ def test_preprocess_rejects_non_bgr() -> None:
 
 def test_missing_model_fails_clearly() -> None:
     settings = IsolatedSettings(
+        app_env="test",
         face_embedding_enabled=True,
         face_embedding_model_path="models/face/sface/missing.onnx",
     )

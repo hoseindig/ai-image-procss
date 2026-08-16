@@ -2,7 +2,7 @@
 
 Local, CPU-only face detection and recognition for a USB webcam. No cloud AI APIs and no paid services.
 
-**Phases 0–10.5:** backend pipeline, Next.js UI, camera enrollment, and one-command integrated run. Plate/OCR/vehicles are out of scope.
+**Phases 0–11:** backend pipeline, Next.js UI, camera enrollment, one-command run, and production hardening/observability. Plate/OCR/vehicles are out of scope.
 
 ## Requirements
 
@@ -85,6 +85,10 @@ npm run frontend:e2e:install
 - [Face enrollment](docs/FACE_ENROLLMENT.md)
 - [E2E face recognition notes](docs/E2E_FACE_RECOGNITION.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Operations](docs/OPERATIONS.md)
+- [Security](docs/SECURITY.md)
+- [Testing](docs/TESTING.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Dependencies](docs/DEPENDENCIES.md)
 - [Models](docs/MODELS.md)
 
@@ -96,4 +100,5 @@ npm run frontend:e2e:install
 | Frontend foundation | Done (9) |
 | Camera enrollment | Done (10) |
 | One-command run + acceptance docs | Done (10.5) |
+| Production hardening / observability | Done (11) |
 | Plate / OCR / vehicles | Future |
