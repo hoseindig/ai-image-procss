@@ -61,6 +61,15 @@ npm run test:all
 
 Runs backend pytest/ruff/mypy and frontend test/lint/typecheck/build. Playwright E2E runs if Chromium is available; otherwise it reports **BLOCKED** (not PASS).
 
+### Test suite statuses (keep separate)
+
+| Suite | Status / notes |
+| --- | --- |
+| Automated Recognition Tests | No webcam; see `docs/RECOGNITION_TESTING.md` (`RECOGNITION_TEST_MODE` default **false**) |
+| Hardware Recognition Test | USB webcam; `docs/ACCEPTANCE_TEST.md` |
+| Browser E2E | Playwright mocked backend; optional Chromium install |
+| Liveness / Anti-Spoofing | **NOT TESTED** |
+
 Install Chromium once (optional):
 
 ```powershell
@@ -70,6 +79,7 @@ npm run frontend:e2e:install
 ## Documentation
 
 - [Setup](docs/SETUP.md)
+- [Recognition testing (TEST ONLY, no webcam)](docs/RECOGNITION_TESTING.md)
 - [Acceptance test (hardware)](docs/ACCEPTANCE_TEST.md)
 - [Frontend](docs/FRONTEND.md)
 - [Face enrollment](docs/FACE_ENROLLMENT.md)

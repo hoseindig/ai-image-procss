@@ -13,6 +13,7 @@ There are **no** cloud AI, telemetry, or paid API dependencies.
 | Package | Version | License | Why it is included |
 | --- | --- | --- | --- |
 | FastAPI | 0.141.1 | MIT | HTTP API |
+| python-multipart | 0.0.22 | Apache-2.0 | Multipart uploads (`POST /api/test/recognize` TEST ONLY) |
 | Starlette | (FastAPI dependency) | BSD-3-Clause | ASGI / TestClient stack |
 | Uvicorn | 0.52.3 | BSD-3-Clause | ASGI server |
 | Pydantic | 2.13.4 | MIT | Request/response schemas |

@@ -121,6 +121,9 @@ class Settings(BaseSettings):
     event_retention_days: int = Field(default=90, ge=1)
     event_api_default_page_size: int = Field(default=50, ge=1, le=500)
     event_api_max_page_size: int = Field(default=200, ge=1, le=1000)
+    # TEST ONLY. Default false. Never enable automatically for production webcam use.
+    # Gates POST /api/test/recognize and RecognitionTestService.
+    recognition_test_mode: bool = Field(default=False)
 
     @field_validator("app_env", mode="before")
     @classmethod

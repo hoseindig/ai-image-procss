@@ -45,6 +45,27 @@ npm run test:all
 
 Hardware acceptance (real webcam): `docs/ACCEPTANCE_TEST.md`.
 
+### Recognition tests without a webcam (TEST ONLY)
+
+See `docs/RECOGNITION_TESTING.md`. Default `RECOGNITION_TEST_MODE=false` — do **not** enable for normal `npm run dev`.
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m pytest tests/test_recognition_testing.py -q
+```
+
+```bash
+cd backend
+.venv/bin/python -m pytest tests/test_recognition_testing.py -q
+```
+
+| Suite | Doc |
+| --- | --- |
+| Automated Recognition Tests | `docs/RECOGNITION_TESTING.md` |
+| Hardware Recognition Test | `docs/ACCEPTANCE_TEST.md` |
+| Browser E2E | `docs/FRONTEND.md` |
+| Liveness / Anti-Spoofing | **NOT TESTED** |
+
 ### Windows 11
 
 - Python **3.13**

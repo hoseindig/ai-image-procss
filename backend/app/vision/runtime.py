@@ -99,6 +99,16 @@ class DetectionRuntime:
     def event_logging_enabled(self) -> bool:
         return self._event_service is not None and self._event_service.enabled
 
+    @property
+    def embedder(self) -> FaceEmbedder | None:
+        """Face embedder instance (may be None). Used by TEST ONLY recognition harness."""
+        return self._embedder
+
+    @property
+    def recognizer(self) -> FaceRecognizer | None:
+        """Face recognizer instance (may be None). Used by TEST ONLY recognition harness."""
+        return self._recognizer
+
     def attach(self, camera_id: str) -> None:
         if not self.enabled or self._detector is None:
             return

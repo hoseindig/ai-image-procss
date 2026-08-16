@@ -84,6 +84,7 @@ def test_face_detection_defaults() -> None:
     assert settings.event_recognized_cooldown_seconds == 10.0
     assert settings.event_unknown_cooldown_seconds == 10.0
     assert settings.event_retention_days == 90
+    assert settings.recognition_test_mode is False
 
 
 def test_invalid_confidence_threshold_is_rejected() -> None:

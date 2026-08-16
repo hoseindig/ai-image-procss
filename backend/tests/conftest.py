@@ -65,6 +65,7 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         "EVENT_RETENTION_DAYS",
         "EVENT_API_DEFAULT_PAGE_SIZE",
         "EVENT_API_MAX_PAGE_SIZE",
+        "RECOGNITION_TEST_MODE",
     ):
         monkeypatch.delenv(key, raising=False)
     database_path = tmp_path / "test.db"

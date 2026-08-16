@@ -2,6 +2,8 @@
 
 Phase 10.5 adds **one-command** monorepo scripts (`npm run setup` / `dev` / `test:all`) without changing the vision pipeline.
 
+**TEST ONLY** recognition harness (`RECOGNITION_TEST_MODE`, default `false`): aligned 112×112 crop → production SFace → gallery → events. See `docs/RECOGNITION_TESTING.md`. Webcam DetectionWorker path is unchanged.
+
 ## Runtime
 
 ```text
