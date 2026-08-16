@@ -1,6 +1,6 @@
-# Architecture (Phase 10)
+# Architecture (Phase 10.5)
 
-Phase 10 adds **camera enrollment sessions** that capture embeddings from the live DetectionRuntime (same SFace path as recognition). Recognition threshold and cooldown defaults are unchanged.
+Phase 10.5 adds **one-command** monorepo scripts (`npm run setup` / `dev` / `test:all`) without changing the vision pipeline.
 
 ## Runtime
 
@@ -11,34 +11,19 @@ USB Webcam
     → EventService (cooldown)
     → SQLite events
 
-Enrollment:
-    → EnrollmentSessionService reads latest snapshot + latest_embeddings
-    → EnrollmentService persists 128-D blob (no images)
+Enrollment sessions → latest_embeddings → EnrollmentService
 
-Preview:
-    → MJPEG /api/cameras/{id}/preview → Browser <img>
+npm run dev
+    → concurrently
+        → uvicorn :8000
+        → next dev :3000  (/backend proxy → :8000)
 ```
 
-## Persistence
-
-| Store | Contents |
-| --- | --- |
-| `persons` / `enrollment_samples` | Gallery embeddings (metadata on GET) |
-| `events` | recognized / unknown_face audit rows |
-| Enrollment sessions | In-memory only (TTL); no DB table |
-
-## Selected API
-
-| Method | Path | Role |
-| --- | --- | --- |
-| POST/GET/DELETE | `/api/persons/{id}/enrollment-sessions…` | Camera enrollment |
-| POST | `/api/persons/{id}/enrollments` | Dev-only precomputed vector |
-| GET | `/api/cameras/{id}/preview` | MJPEG |
-| GET | `/api/events` | Paginated history |
+Recognition threshold and event cooldowns are unchanged.
 
 ## Docs
 
+- `docs/ACCEPTANCE_TEST.md` — hardware acceptance
 - `docs/FACE_ENROLLMENT.md`
-- `docs/E2E_FACE_RECOGNITION.md`
 - `docs/FRONTEND.md`
-- `docs/EVENTS.md`
+- `docs/SETUP.md`

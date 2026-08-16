@@ -82,6 +82,18 @@ See `docs/FACE_ENROLLMENT.md`.
 
 `html` uses `lang="fa"` and `dir="rtl"`. Spacing utilities prefer logical properties (`ps`/`pe`/`start`) where custom. Vazirmatn is the primary font.
 
+## One-command run
+
+From the repo root:
+
+```powershell
+npm run dev
+```
+
+Frontend proxies `/backend/*` to FastAPI. See root `scripts/dev.mjs`.
+
+Hardware acceptance is separate: `docs/ACCEPTANCE_TEST.md`.
+
 ## Scripts
 
 From `frontend/`:

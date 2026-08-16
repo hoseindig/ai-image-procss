@@ -1,13 +1,49 @@
-# Setup (Phase 10)
+# Setup (Phase 10.5)
 
-Phase 10 runs the FastAPI backend (USB webcam, YuNet, tracking, quality/alignment, SFace, **camera enrollment sessions**, recognition, events, MJPEG) plus the Next.js frontend.
+Integrated FastAPI backend + Next.js frontend. Prefer root **`npm run setup`** / **`npm run dev`** / **`npm run test:all`**.
+
+Phase 10.5 does **not** change YuNet/SFace/thresholds/cooldowns.
+
+**Tested environment:** Windows 11, Python 3.13, Node.js v24.18.1, Intel i7-13700H, CPU only.  
+**Documented:** Ubuntu LTS (same Python/venv and Node workflows; Linux webcam latency not re-measured).  
+**Hardware acceptance:** `docs/ACCEPTANCE_TEST.md` (separate from Playwright).
 
 Automated backend tests **do not** need a physical webcam. Frontend unit tests mock the API. Playwright smoke tests stub `/backend` responses and do not require a webcam.
 
-**Tested environment:** Windows 11, Python 3.13, Node.js v24.18.1, Intel i7-13700H, CPU only.  
-**Also documented:** Ubuntu LTS (Linux) with the same Python/venv and Node workflows — Linux webcam latency has not been re-measured for Phase 9 on Ubuntu.
+## One-command workflow (recommended)
 
-## Prerequisites
+### Windows PowerShell
+
+```powershell
+npm run setup
+python scripts/download_models.py
+npm run db:migrate
+npm run dev
+```
+
+### Linux bash
+
+```bash
+npm run setup
+python3 scripts/download_models.py
+npm run db:migrate
+npm run dev
+```
+
+`npm run dev` starts:
+
+- Backend: http://127.0.0.1:8000
+- Frontend: http://127.0.0.1:3000
+
+Ctrl+C stops both (via `concurrently`).
+
+Full automated checks:
+
+```powershell
+npm run test:all
+```
+
+Hardware acceptance (real webcam): `docs/ACCEPTANCE_TEST.md`.
 
 ### Windows 11
 

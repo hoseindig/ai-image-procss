@@ -2,155 +2,88 @@
 
 Local, CPU-only face detection and recognition for a USB webcam. No cloud AI APIs and no paid services.
 
-**Phases 0–10 are implemented** (backend through camera enrollment + Next.js UI). Plate recognition / OCR are not in this phase.
-
-See `docs/IMPLEMENTATION_PLAN.md` for the full roadmap.
+**Phases 0–10.5:** backend pipeline, Next.js UI, camera enrollment, and one-command integrated run. Plate/OCR/vehicles are out of scope.
 
 ## Requirements
 
-- Windows 11 (primary target) or Ubuntu LTS (documented)
-- Python 3.13
-- Node.js **24+** (frontend)
-- One USB webcam (live capture / smoke test)
-- YuNet + SFace ONNX files (see `docs/MODELS.md`; download once, then offline)
-- Intel Core i7-class CPU, 16 GB RAM, no GPU required
+- Windows 11 (primary) or Ubuntu LTS (documented)
+- Python **3.13**
+- Node.js **24+**
+- One USB webcam (for hardware acceptance)
+- YuNet + SFace ONNX files (`docs/MODELS.md`)
 
 ## Quick start (Windows PowerShell)
 
-### Backend
-
 ```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
-cd ..
-copy .env.example .env
+# 1) Install Node + Python deps (does NOT download models or migrate DB)
+npm run setup
+
+# 2) Models (once; needs network)
 python scripts/download_models.py
-cd backend
-alembic upgrade head
-python -m app
-```
 
-Health: http://127.0.0.1:8000/api/health
+# 3) Database
+npm run db:migrate
 
-### Frontend
-
-```powershell
-cd frontend
-copy .env.example .env.local
-npm install
+# 4) Backend + frontend together
 npm run dev
 ```
 
-UI: http://127.0.0.1:3000
+Open:
 
-The frontend proxies `/backend/*` to `http://127.0.0.1:8000` (see `docs/FRONTEND.md`).
+- Frontend: http://127.0.0.1:3000
+- Backend health: http://127.0.0.1:8000/api/health
 
-### Root convenience scripts
-
-From the project root (Node only; does not replace the Python venv):
-
-```powershell
-npm run frontend:install
-npm run frontend:dev
-npm run frontend:build
-npm run frontend:test
-```
+Stop with **Ctrl+C** (stops both processes).
 
 ## Quick start (Linux / Ubuntu LTS bash)
 
-### Backend
-
 ```bash
-cd backend
-python3.13 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
-cd ..
-cp .env.example .env
-python scripts/download_models.py
-cd backend
-alembic upgrade head
-python -m app
-```
-
-### Frontend
-
-```bash
-cd frontend
-cp .env.example .env.local
-npm install
+npm run setup
+python3 scripts/download_models.py
+npm run db:migrate
 npm run dev
 ```
 
-## Tests
+## What `npm run setup` does
 
-### Backend (from `backend/` with venv active)
+- `npm install` at repo root (adds `concurrently` for `npm run dev`)
+- `npm install` in `frontend/`
+- Creates `backend/.venv` if missing and `pip install -e ".[dev]"`
+- Copies `.env.example` → `.env` and `frontend/.env.example` → `frontend/.env.local` **only if missing**
 
-```powershell
-pytest
-ruff check .
-ruff format --check .
-mypy .
-```
+It does **not** download models, run migrations, delete databases, or delete virtualenvs.
 
-### Frontend (from `frontend/`)
+## One-command tests
 
 ```powershell
-npm run lint
-npm run typecheck
-npm run test
-npm run build
+npm run test:all
 ```
 
-Optional Playwright smoke (mocked backend; no webcam):
+Runs backend pytest/ruff/mypy and frontend test/lint/typecheck/build. Playwright E2E runs if Chromium is available; otherwise it reports **BLOCKED** (not PASS).
+
+Install Chromium once (optional):
 
 ```powershell
-npm run test:e2e:install
-npm run test:e2e
+npm run frontend:e2e:install
 ```
-
-## Key endpoints
-
-| Path | Role |
-| --- | --- |
-| `GET /api/health` | process health |
-| `GET /api/system/status` | DB / camera / AI flags |
-| `GET/POST /api/cameras…` | list, start, stop, detections |
-| `GET /api/cameras/{id}/preview` | MJPEG live preview |
-| `GET/POST /api/persons…` | gallery + **enrollment-sessions** |
-| `GET /api/events` | paginated audit events |
 
 ## Documentation
 
-- [Setup](docs/SETUP.md) — Windows + Linux
-- [Frontend](docs/FRONTEND.md) — Next.js architecture, proxy, RTL
-- [Face enrollment](docs/FACE_ENROLLMENT.md) — camera enrollment sessions
-- [E2E face recognition](docs/E2E_FACE_RECOGNITION.md) — known/unknown/cooldown checklist
+- [Setup](docs/SETUP.md)
+- [Acceptance test (hardware)](docs/ACCEPTANCE_TEST.md)
+- [Frontend](docs/FRONTEND.md)
+- [Face enrollment](docs/FACE_ENROLLMENT.md)
+- [E2E face recognition notes](docs/E2E_FACE_RECOGNITION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Dependencies](docs/DEPENDENCIES.md)
 - [Models](docs/MODELS.md)
-- [Tracking](docs/TRACKING.md)
-- [Face quality & alignment](docs/FACE_QUALITY.md)
-- [Face embedding](docs/FACE_EMBEDDING.md)
-- [Person enrollment](docs/PERSON_ENROLLMENT.md)
-- [Face recognition](docs/FACE_RECOGNITION.md)
-- [Events](docs/EVENTS.md)
-- [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 
 ## Phase status
 
 | Topic | Status |
 | --- | --- |
-| Face pipeline through events | Done (Phases 0–8) |
-| Frontend foundation | Done (Phase 9) |
-| Camera enrollment + E2E validation | Done (Phase 10) |
-| Plate / OCR / vehicles | Future only |
-| WebSockets | Future |
-
-## Troubleshooting
-
-Camera access: `docs/SETUP.md`. Frontend proxy / RTL: `docs/FRONTEND.md`.
+| Face pipeline + events | Done (0–8) |
+| Frontend foundation | Done (9) |
+| Camera enrollment | Done (10) |
+| One-command run + acceptance docs | Done (10.5) |
+| Plate / OCR / vehicles | Future |

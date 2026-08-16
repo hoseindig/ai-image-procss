@@ -1,16 +1,26 @@
 {
   "name": "local-face-camera",
   "private": true,
-  "description": "Convenience scripts for the monorepo. Backend remains Python; frontend is Next.js.",
+  "description": "Monorepo scripts: setup, concurrent backend+frontend dev, and full test suite.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "dev": "node scripts/dev.mjs",
+    "test:all": "node scripts/test-all.mjs",
     "frontend:install": "npm --prefix frontend install",
     "frontend:dev": "npm --prefix frontend run dev",
     "frontend:build": "npm --prefix frontend run build",
     "frontend:lint": "npm --prefix frontend run lint",
     "frontend:typecheck": "npm --prefix frontend run typecheck",
-    "frontend:test": "npm --prefix frontend run test"
+    "frontend:test": "npm --prefix frontend run test",
+    "frontend:e2e": "npm --prefix frontend run test:e2e",
+    "frontend:e2e:install": "npm --prefix frontend run test:e2e:install"
   },
-  "engines": {
-    "node": ">=24"
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
