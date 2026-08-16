@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from app.persons.exceptions import (
+    EnrollmentCaptureNotReadyError,
     EnrollmentNotFoundError,
     EnrollmentQualityRejectedError,
+    EnrollmentSessionConflictError,
+    EnrollmentSessionNotFoundError,
     InvalidEmbeddingError,
     PersonConflictError,
     PersonError,
@@ -15,16 +18,20 @@ from app.persons.exceptions import (
 
 
 def person_error_http_status(exc: PersonError) -> int:
-    if isinstance(exc, PersonNotFoundError | EnrollmentNotFoundError):
+    if isinstance(
+        exc,
+        PersonNotFoundError | EnrollmentNotFoundError | EnrollmentSessionNotFoundError,
+    ):
         return 404
-    if isinstance(exc, PersonConflictError):
+    if isinstance(exc, PersonConflictError | EnrollmentSessionConflictError):
         return 409
     if isinstance(
         exc,
         PersonValidationError
         | InvalidEmbeddingError
         | EnrollmentQualityRejectedError
-        | PersonInactiveError,
+        | PersonInactiveError
+        | EnrollmentCaptureNotReadyError,
     ):
         return 400
     return 400

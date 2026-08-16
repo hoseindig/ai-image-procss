@@ -70,9 +70,13 @@ Do not put secrets in `NEXT_PUBLIC_*`.
 
 Similarity is shown as a score (`0.742`), never as a percentage.
 
-## Enrollment UI note
+## Enrollment
 
-Phase 7A enrollment POST still requires a precomputed 128-D vector. The person detail page exposes a clearly labeled **Developer / testing enrollment** panel. It does not claim to capture or embed faces in the browser. Future phases can enroll from the live camera pipeline.
+Normal path: person detail → **Enroll Face** → backend session + MJPEG + Capture.
+
+Developer JSON paste is behind **Show developer tools** only.
+
+See `docs/FACE_ENROLLMENT.md`.
 
 ## RTL
 

@@ -2,7 +2,7 @@
 
 Local, CPU-only face detection and recognition for a USB webcam. No cloud AI APIs and no paid services.
 
-**Phases 0–9 are implemented** (backend through events + Next.js frontend foundation). Plate recognition / OCR are not in this phase.
+**Phases 0–10 are implemented** (backend through camera enrollment + Next.js UI). Plate recognition / OCR are not in this phase.
 
 See `docs/IMPLEMENTATION_PLAN.md` for the full roadmap.
 
@@ -121,13 +121,15 @@ npm run test:e2e
 | `GET /api/system/status` | DB / camera / AI flags |
 | `GET/POST /api/cameras…` | list, start, stop, detections |
 | `GET /api/cameras/{id}/preview` | MJPEG live preview |
-| `GET/POST /api/persons…` | gallery |
+| `GET/POST /api/persons…` | gallery + **enrollment-sessions** |
 | `GET /api/events` | paginated audit events |
 
 ## Documentation
 
 - [Setup](docs/SETUP.md) — Windows + Linux
 - [Frontend](docs/FRONTEND.md) — Next.js architecture, proxy, RTL
+- [Face enrollment](docs/FACE_ENROLLMENT.md) — camera enrollment sessions
+- [E2E face recognition](docs/E2E_FACE_RECOGNITION.md) — known/unknown/cooldown checklist
 - [Architecture](docs/ARCHITECTURE.md)
 - [Dependencies](docs/DEPENDENCIES.md)
 - [Models](docs/MODELS.md)
@@ -145,6 +147,7 @@ npm run test:e2e
 | --- | --- |
 | Face pipeline through events | Done (Phases 0–8) |
 | Frontend foundation | Done (Phase 9) |
+| Camera enrollment + E2E validation | Done (Phase 10) |
 | Plate / OCR / vehicles | Future only |
 | WebSockets | Future |
 

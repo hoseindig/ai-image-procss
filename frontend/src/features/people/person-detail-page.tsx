@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FaceEnrollmentPanel } from "@/features/people/face-enrollment-panel";
 import {
   useCreateEnrollment,
   useDeleteEnrollment,
@@ -36,13 +37,12 @@ function parseEmbeddingJson(raw: string): number[] {
   if (parsed.length !== EMBEDDING_DIM) {
     throw new Error(`Embedding must have exactly ${EMBEDDING_DIM} numbers`);
   }
-  const values = parsed.map((item) => {
+  return parsed.map((item) => {
     if (typeof item !== "number" || Number.isNaN(item)) {
       throw new Error("Embedding values must be numbers");
     }
     return item;
   });
-  return values;
 }
 
 export function PersonDetailPage({ personId }: { personId: string }) {
@@ -51,10 +51,11 @@ export function PersonDetailPage({ personId }: { personId: string }) {
   const update = useUpdatePerson(personId);
   const createEnrollment = useCreateEnrollment(personId);
   const deleteEnrollment = useDeleteEnrollment(personId);
+  const [showDevTools, setShowDevTools] = useState(false);
   const [embeddingJson, setEmbeddingJson] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
 
-  function onEnroll(event: FormEvent) {
+  function onDevEnroll(event: FormEvent) {
     event.preventDefault();
     setParseError(null);
     try {
@@ -139,11 +140,20 @@ export function PersonDetailPage({ personId }: { personId: string }) {
         </CardContent>
       </Card>
 
+      <FaceEnrollmentPanel
+        personId={personId}
+        personActive={data.active}
+        onCompleted={() => {
+          void enrollments.refetch();
+          void person.refetch();
+        }}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle>ثبت‌نام‌ها (metadata)</CardTitle>
           <CardDescription>
-            فقط فراداده نمایش داده می‌شود. بردار خام 128 بعدی هرگز در پاسخ GET یا UI نیست.
+            فقط فراداده نمایش داده می‌شود. بردار خام 128 بعدی در UI نیست.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -201,44 +211,56 @@ export function PersonDetailPage({ personId }: { personId: string }) {
         </CardContent>
       </Card>
 
-      <Card className="border-amber-300 bg-amber-50">
-        <CardHeader>
-          <CardTitle>Developer / testing enrollment</CardTitle>
-          <CardDescription>
-            Phase 7A accepts a precomputed 128-D embedding. This UI does{" "}
-            <strong>not</strong> run SFace in the browser. Paste a JSON array of 128 floats from a
-            trusted local tool/test harness only.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-3" onSubmit={onEnroll}>
-            <div className="space-y-2">
-              <Label htmlFor="embedding-json">Embedding JSON (128 floats)</Label>
-              <textarea
-                id="embedding-json"
-                className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={embeddingJson}
-                onChange={(event) => setEmbeddingJson(event.target.value)}
-                placeholder="[0.01, -0.02, ...]"
-                spellCheck={false}
-              />
-            </div>
-            {(parseError || createEnrollment.isError) && (
-              <ErrorState
-                message={
-                  parseError ??
-                  (isApiError(createEnrollment.error)
-                    ? createEnrollment.error.message
-                    : "Enrollment failed")
-                }
-              />
-            )}
-            <Button type="submit" disabled={createEnrollment.isPending || !embeddingJson.trim()}>
-              Add enrollment (dev)
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowDevTools((value) => !value)}
+        >
+          {showDevTools ? "Hide developer tools" : "Show developer tools"}
+        </Button>
+      </div>
+
+      {showDevTools ? (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardHeader>
+            <CardTitle>Developer / testing enrollment</CardTitle>
+            <CardDescription>
+              Not the normal workflow. Paste a precomputed 128-D embedding JSON only for harness
+              testing. Prefer <strong>Enroll Face</strong> above.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-3" onSubmit={onDevEnroll}>
+              <div className="space-y-2">
+                <Label htmlFor="embedding-json">Embedding JSON (128 floats)</Label>
+                <textarea
+                  id="embedding-json"
+                  className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={embeddingJson}
+                  onChange={(event) => setEmbeddingJson(event.target.value)}
+                  placeholder="[0.01, -0.02, ...]"
+                  spellCheck={false}
+                />
+              </div>
+              {(parseError || createEnrollment.isError) && (
+                <ErrorState
+                  message={
+                    parseError ??
+                    (isApiError(createEnrollment.error)
+                      ? createEnrollment.error.message
+                      : "Enrollment failed")
+                  }
+                />
+              )}
+              <Button type="submit" disabled={createEnrollment.isPending || !embeddingJson.trim()}>
+                Add enrollment (dev)
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

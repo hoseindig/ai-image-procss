@@ -37,6 +37,8 @@ export const queryKeys = {
   persons: ["persons"] as const,
   person: (id: string) => ["persons", id] as const,
   enrollments: (personId: string) => ["persons", personId, "enrollments"] as const,
+  enrollmentSession: (personId: string, sessionId: string) =>
+    ["persons", personId, "enrollment-sessions", sessionId] as const,
   events: (params: Record<string, unknown>) => ["events", params] as const,
   event: (id: string) => ["events", "detail", id] as const,
 };

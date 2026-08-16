@@ -87,3 +87,48 @@ export function useDeleteEnrollment(personId: string) {
     },
   });
 }
+
+export function useEnrollmentSession(personId: string, sessionId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.enrollmentSession(personId, sessionId ?? ""),
+    queryFn: ({ signal }) => enrollmentsApi.getSession(personId, sessionId!, signal),
+    enabled: Boolean(sessionId),
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      if (
+        state === "completed" ||
+        state === "cancelled" ||
+        state === "failed"
+      ) {
+        return false;
+      }
+      return 750;
+    },
+  });
+}
+
+export function useStartEnrollmentSession(personId: string) {
+  return useMutation({
+    mutationFn: (cameraId?: string) =>
+      enrollmentsApi.startSession(personId, cameraId ? { camera_id: cameraId } : {}),
+  });
+}
+
+export function useCaptureEnrollmentSession(personId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => enrollmentsApi.captureSession(personId, sessionId),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.enrollments(personId) });
+      void client.invalidateQueries({ queryKey: queryKeys.person(personId) });
+      void client.invalidateQueries({ queryKey: queryKeys.persons });
+    },
+  });
+}
+
+export function useCancelEnrollmentSession(personId: string) {
+  return useMutation({
+    mutationFn: (sessionId: string) => enrollmentsApi.cancelSession(personId, sessionId),
+  });
+}

@@ -1,6 +1,6 @@
-# Setup (Phase 9)
+# Setup (Phase 10)
 
-Phase 9 runs the FastAPI backend (USB webcam, YuNet, tracking, quality/alignment, SFace, enrollment, recognition, events, **MJPEG preview**) plus a Next.js frontend for testing.
+Phase 10 runs the FastAPI backend (USB webcam, YuNet, tracking, quality/alignment, SFace, **camera enrollment sessions**, recognition, events, MJPEG) plus the Next.js frontend.
 
 Automated backend tests **do not** need a physical webcam. Frontend unit tests mock the API. Playwright smoke tests stub `/backend` responses and do not require a webcam.
 
@@ -183,7 +183,8 @@ npm run start
 4. Camera page → Start → confirm MJPEG
 5. People → create person
 6. Events → confirm list/pagination API
-7. Enrollment from camera pipeline remains a future UX; Phase 7A still accepts precomputed embeddings via the labeled developer panel
+7. Enrollment: person detail → **Enroll Face** (camera session). Dev JSON paste is optional under developer tools.
+8. Validate recognition + events (`docs/E2E_FACE_RECOGNITION.md`)
 
 ## Backend verification
 

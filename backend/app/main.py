@@ -15,6 +15,7 @@ from app.core.config import Settings, load_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import get_logger, setup_logging
 from app.db.session import Database
+from app.persons.enrollment_session import EnrollmentSessionStore
 from app.services.event import EventService, EventServiceConfig
 from app.vision.detector import FaceDetector
 from app.vision.factory import (
@@ -30,6 +31,7 @@ def create_app(
     settings: Settings | None = None,
     camera_manager: CameraManager | None = None,
     face_detector: FaceDetector | None = None,
+    enrollment_session_store: EnrollmentSessionStore | None = None,
 ) -> FastAPI:
     """Build the FastAPI application.
 
@@ -44,6 +46,7 @@ def create_app(
     if manager is None:
         manager = CameraManager()
         manager.register(config_from_settings(resolved))
+    session_store = enrollment_session_store or EnrollmentSessionStore()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -67,6 +70,7 @@ def create_app(
         app.state.database = database
         app.state.camera_manager = manager
         app.state.detection_runtime = runtime
+        app.state.enrollment_session_store = session_store
         app.state.event_service = event_service or EventService(
             database,
             EventServiceConfig(enabled=False),
@@ -88,6 +92,7 @@ def create_app(
         lifespan=lifespan,
     )
     application.state.settings = resolved
+    application.state.enrollment_session_store = session_store
     application.add_middleware(
         CORSMiddleware,
         allow_origins=resolved.cors_origins,

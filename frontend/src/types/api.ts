@@ -194,6 +194,40 @@ export interface EnrollmentCreateRequest {
   source_track_id?: number | null;
 }
 
+export type EnrollmentSessionState =
+  | "starting"
+  | "waiting_for_face"
+  | "face_detected"
+  | "multiple_faces"
+  | "quality_rejected"
+  | "ready"
+  | "capturing"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export interface EnrollmentSession {
+  id: string;
+  person_id: string;
+  camera_id: string;
+  state: EnrollmentSessionState;
+  track_id: number | null;
+  quality_reasons: QualityRejectionReason[];
+  message: string | null;
+  error_code: string | null;
+  enrollment_id: string | null;
+  face_width: number | null;
+  face_height: number | null;
+  sharpness: number | null;
+  brightness: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EnrollmentSessionCreateRequest {
+  camera_id?: string | null;
+}
+
 export type EventType =
   | "recognized"
   | "unknown_face"

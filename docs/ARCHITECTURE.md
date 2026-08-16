@@ -1,6 +1,6 @@
-# Architecture (Phase 9)
+# Architecture (Phase 10)
 
-Phase 9 adds a Next.js frontend that consumes the existing FastAPI face pipeline. Recognition behavior, thresholds, and cooldown defaults are unchanged.
+Phase 10 adds **camera enrollment sessions** that capture embeddings from the live DetectionRuntime (same SFace path as recognition). Recognition threshold and cooldown defaults are unchanged.
 
 ## Runtime
 
@@ -11,43 +11,34 @@ USB Webcam
     → EventService (cooldown)
     → SQLite events
 
-Live frames also feed:
-    → MJPEG /api/cameras/{id}/preview
-    → Browser <img> (no getUserMedia for the main pipeline)
+Enrollment:
+    → EnrollmentSessionService reads latest snapshot + latest_embeddings
+    → EnrollmentService persists 128-D blob (no images)
 
-REST metadata:
-    → Next.js /backend rewrite → FastAPI
-    → TanStack Query → UI pages
+Preview:
+    → MJPEG /api/cameras/{id}/preview → Browser <img>
 ```
 
 ## Persistence
 
 | Store | Contents |
 | --- | --- |
-| `persons` / `enrollment_samples` | Gallery (Phase 7A) |
-| `events` | recognized / unknown_face audit rows (Phase 8) |
+| `persons` / `enrollment_samples` | Gallery embeddings (metadata on GET) |
+| `events` | recognized / unknown_face audit rows |
+| Enrollment sessions | In-memory only (TTL); no DB table |
 
-No embeddings, snapshots, or video are stored by the frontend.
-
-## API (selected)
+## Selected API
 
 | Method | Path | Role |
 | --- | --- | --- |
-| GET | `/api/health` | liveness |
-| GET | `/api/system/status` | DB / camera / pipeline flags |
-| GET/POST | `/api/cameras…` | lifecycle + detections |
-| GET | `/api/cameras/{id}/preview` | MJPEG stream |
-| * | `/api/persons…` | gallery |
-| GET | `/api/events` | paginated filtered history |
-
-## Frontend
-
-See `docs/FRONTEND.md` for stack, RTL, proxy, and enrollment developer UI.
+| POST/GET/DELETE | `/api/persons/{id}/enrollment-sessions…` | Camera enrollment |
+| POST | `/api/persons/{id}/enrollments` | Dev-only precomputed vector |
+| GET | `/api/cameras/{id}/preview` | MJPEG |
+| GET | `/api/events` | Paginated history |
 
 ## Docs
 
-- `docs/FRONTEND.md` — UI foundation
-- `docs/EVENTS.md` — cooldown, schema, privacy
-- `docs/FACE_RECOGNITION.md` — matching
-- `docs/PERSON_ENROLLMENT.md` — gallery
-- `docs/MODELS.md` — model licenses
+- `docs/FACE_ENROLLMENT.md`
+- `docs/E2E_FACE_RECOGNITION.md`
+- `docs/FRONTEND.md`
+- `docs/EVENTS.md`

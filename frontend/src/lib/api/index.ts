@@ -6,6 +6,8 @@ import type {
   EnrollmentCreateRequest,
   EnrollmentListResponse,
   EnrollmentSampleMetadata,
+  EnrollmentSession,
+  EnrollmentSessionCreateRequest,
   Event,
   EventListParams,
   EventListResponse,
@@ -81,6 +83,30 @@ export const enrollmentsApi = {
   remove: (personId: string, enrollmentId: string, signal?: AbortSignal) =>
     apiRequest<void>(
       `/api/persons/${encodeURIComponent(personId)}/enrollments/${encodeURIComponent(enrollmentId)}`,
+      { method: "DELETE", signal },
+    ),
+  startSession: (
+    personId: string,
+    body: EnrollmentSessionCreateRequest = {},
+    signal?: AbortSignal,
+  ) =>
+    apiRequest<EnrollmentSession>(
+      `/api/persons/${encodeURIComponent(personId)}/enrollment-sessions`,
+      { method: "POST", body, signal },
+    ),
+  getSession: (personId: string, sessionId: string, signal?: AbortSignal) =>
+    apiRequest<EnrollmentSession>(
+      `/api/persons/${encodeURIComponent(personId)}/enrollment-sessions/${encodeURIComponent(sessionId)}`,
+      { signal },
+    ),
+  captureSession: (personId: string, sessionId: string, signal?: AbortSignal) =>
+    apiRequest<EnrollmentSession>(
+      `/api/persons/${encodeURIComponent(personId)}/enrollment-sessions/${encodeURIComponent(sessionId)}/capture`,
+      { method: "POST", signal },
+    ),
+  cancelSession: (personId: string, sessionId: string, signal?: AbortSignal) =>
+    apiRequest<EnrollmentSession>(
+      `/api/persons/${encodeURIComponent(personId)}/enrollment-sessions/${encodeURIComponent(sessionId)}`,
       { method: "DELETE", signal },
     ),
 };
