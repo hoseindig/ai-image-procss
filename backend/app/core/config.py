@@ -108,6 +108,9 @@ class Settings(BaseSettings):
     # Default 112×112 matches the planned SFace input; kept configurable.
     face_alignment_width: int = Field(default=112, ge=16)
     face_alignment_height: int = Field(default=112, ge=16)
+    face_embedding_enabled: bool = Field(default=True)
+    face_embedding_model_path: str = Field(default="models/face/sface/2021dec.onnx")
+    face_embedding_threads: int = Field(default=2, ge=1)
 
     @field_validator("app_env", mode="before")
     @classmethod

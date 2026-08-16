@@ -88,6 +88,29 @@ class FaceQuality(BaseModel):
     landmarks_valid: bool
 
 
+class EmbeddingStatus(StrEnum):
+    GENERATED = "generated"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+
+
+class EmbeddingSkipReason(StrEnum):
+    QUALITY_REJECTED = "quality_rejected"
+    ALIGNMENT_UNAVAILABLE = "alignment_unavailable"
+    EMBEDDING_DISABLED = "embedding_disabled"
+    INFERENCE_FAILED = "inference_failed"
+
+
+class EmbeddingInfo(BaseModel):
+    """API-safe embedding metadata. Raw vectors are never included."""
+
+    track_id: int = Field(ge=1)
+    status: EmbeddingStatus
+    dimension: int | None = Field(default=None, ge=1)
+    reason: EmbeddingSkipReason | None = None
+    normalized: bool = False
+
+
 class DetectionSnapshot(BaseModel):
     """Latest completed detection for a camera. Replaced as a whole; never queued."""
 
@@ -96,10 +119,13 @@ class DetectionSnapshot(BaseModel):
     faces: list[FaceDetection] = Field(default_factory=list)
     tracks: list[FaceTrack] = Field(default_factory=list)
     qualities: list[FaceQuality] = Field(default_factory=list)
+    embeddings: list[EmbeddingInfo] = Field(default_factory=list)
     inference_ms: float | None = None
     tracking_ms: float | None = None
     quality_ms: float | None = None
     alignment_ms: float | None = None
+    embedding_ms: float | None = None
     aligned_count: int = Field(default=0, ge=0)
     aligned_track_ids: list[int] = Field(default_factory=list)
+    embedded_count: int = Field(default=0, ge=0)
     error: str | None = None

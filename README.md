@@ -2,7 +2,8 @@
 
 Local, CPU-only face detection and recognition for a USB webcam. No cloud AI APIs and no paid services.
 
-This repository is being built in gated phases. **Phases 0–5 are implemented** (backend, USB camera, YuNet detection, IoU tracking, face quality & alignment). Recognition and the frontend are not in this phase.
+This repository is being built in gated phases. **Phases 0–6 are implemented** (backend, USB camera, YuNet, tracking, quality/alignment, SFace embedding). Person recognition and the frontend are not in this phase.
+
 
 
 See `docs/IMPLEMENTATION_PLAN.md` for the full roadmap.
@@ -13,7 +14,7 @@ See `docs/IMPLEMENTATION_PLAN.md` for the full roadmap.
 - Python 3.13
 - Node.js 24+ (needed from Phase 5/9; not required for Phase 3)
 - One USB webcam (live capture / smoke test)
-- YuNet ONNX file (see `docs/MODELS.md`; download once, then offline)
+- YuNet + SFace ONNX files (see `docs/MODELS.md`; download once, then offline)
 - Intel Core i7-class CPU, 16 GB RAM, no GPU required
 
 ## Phase 1 — Backend foundation
@@ -97,6 +98,13 @@ CPU baseline (no webcam):
 .\.venv\Scripts\python.exe scripts/benchmark_face_detection.py
 .\.venv\Scripts\python.exe scripts/benchmark_face_tracking.py
 .\.venv\Scripts\python.exe scripts/benchmark_face_quality.py
+.\.venv\Scripts\python.exe scripts/benchmark_face_embedding.py
+```
+
+Embedding overlay (metadata only):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/test_webcam.py --show-embedding
 ```
 
 ### Tests, lint, type checks
@@ -124,9 +132,10 @@ ruff format .
 | Face detection (YuNet) | Phase 3 (done) |
 | Face tracking (IoU) | Phase 4 (done) |
 | Face quality & alignment | Phase 5 (done) |
-| Registering a person / recognition | Phase 6+ |
+| Face embedding (SFace) | Phase 6 (done) |
+| Registering a person / recognition | Phase 7+ |
 | Frontend | Phase 9 |
-| Model download | Phase 3 (done; `scripts/download_models.py`) |
+| Model download | Phases 3+6 (done; `scripts/download_models.py`) |
 | E2E tests | Phase 10 |
 
 ## Documentation
@@ -137,6 +146,7 @@ ruff format .
 - [Models](docs/MODELS.md)
 - [Tracking](docs/TRACKING.md)
 - [Face quality & alignment](docs/FACE_QUALITY.md)
+- [Face embedding](docs/FACE_EMBEDDING.md)
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 
 ## Troubleshooting camera access / CPU tuning

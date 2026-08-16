@@ -11,9 +11,10 @@ class VisionError(Exception):
 
 
 class ModelNotFoundError(VisionError):
-    def __init__(self, path: str) -> None:
-        super().__init__(f"YuNet model not found:\n{path}", code="model_not_found")
+    def __init__(self, path: str, *, model_name: str = "Model") -> None:
+        super().__init__(f"{model_name} model not found:\n{path}", code="model_not_found")
         self.path = path
+        self.model_name = model_name
 
 
 class ModelLoadError(VisionError):

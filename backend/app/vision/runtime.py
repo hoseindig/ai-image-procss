@@ -11,6 +11,7 @@ from app.core.config import Settings
 from app.core.logging import get_logger
 from app.vision.align import AlignedFace
 from app.vision.detector import FaceDetector
+from app.vision.embedder import FaceEmbedder, FaceEmbedding
 from app.vision.factory import (
     create_face_aligner,
     create_face_quality_assessor,
@@ -30,10 +31,13 @@ class DetectionRuntime:
         detector: FaceDetector | None,
         settings: Settings,
         camera_manager: CameraManager,
+        *,
+        embedder: FaceEmbedder | None = None,
     ) -> None:
         self._detector = detector
         self._settings = settings
         self._camera_manager = camera_manager
+        self._embedder = embedder
         self._lock = threading.RLock()
         self._workers: dict[str, DetectionWorker] = {}
 
@@ -64,6 +68,17 @@ class DetectionRuntime:
     def alignment_enabled(self) -> bool:
         return self._settings.face_alignment_enabled
 
+    @property
+    def embedding_enabled(self) -> bool:
+        return self._settings.face_embedding_enabled and self._embedder is not None
+
+    @property
+    def embedding_provider(self) -> str | None:
+        if self._embedder is None:
+            return None
+        provider = getattr(self._embedder, "provider", None)
+        return provider if isinstance(provider, str) else None
+
     def attach(self, camera_id: str) -> None:
         if not self.enabled or self._detector is None:
             return
@@ -82,6 +97,7 @@ class DetectionRuntime:
                 tracker=create_face_tracker(self._settings),
                 quality_assessor=create_face_quality_assessor(self._settings),
                 aligner=create_face_aligner(self._settings),
+                embedder=self._embedder,
             )
             self._workers[camera_id] = worker
         worker.start()
@@ -105,6 +121,13 @@ class DetectionRuntime:
         if worker is None:
             return ()
         return worker.latest_aligned()
+
+    def latest_embeddings(self, camera_id: str) -> tuple[FaceEmbedding, ...]:
+        with self._lock:
+            worker = self._workers.get(camera_id)
+        if worker is None:
+            return ()
+        return worker.latest_embeddings()
 
     def last_inference_ms(self) -> float | None:
         with self._lock:

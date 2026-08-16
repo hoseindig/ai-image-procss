@@ -1,4 +1,4 @@
-# Dependencies (Phase 3)
+# Dependencies (Phase 6)
 
 Python package versions are pinned in `backend/pyproject.toml`. Licenses below were taken from the projects’ official packaging metadata / repositories. This is not legal advice.
 
@@ -21,13 +21,13 @@ There are **no** cloud AI, telemetry, or paid API dependencies.
 | greenlet | (SQLAlchemy dependency) | MIT | SQLAlchemy 2 support |
 | NumPy | 2.5.2 | BSD-3-Clause | Frames, YuNet decode, coordinate mapping |
 | opencv-python | 5.0.0.93 | Apache-2.0 | USB `VideoCapture`, resize/pad, preview drawing |
-| onnxruntime | 1.28.0 | MIT | CPU inference (`CPUExecutionProvider` only) |
+| onnxruntime | 1.28.0 | MIT | CPU inference (`CPUExecutionProvider` only) for YuNet + SFace |
 
-**ONNX Runtime:** `onnxruntime==1.28.0` is the CPU wheel. Do **not** install `onnxruntime-gpu`. The engine passes `providers=["CPUExecutionProvider"]` and checks that this provider is active. Selected for Python 3.13 / Windows 11 (Phase 0 pin; `Requires-Python: >=3.11` on PyPI).
+**ONNX Runtime:** `onnxruntime==1.28.0` is the CPU wheel. Do **not** install `onnxruntime-gpu`. The engine passes `providers=["CPUExecutionProvider"]` and checks that this provider is active.
 
-**OpenCV choice:** unchanged from Phase 2. OpenCV is not used as the DNN runtime for YuNet.
+**OpenCV choice:** camera capture, resize/pad, affine align, preview drawing — not the DNN runtime for YuNet/SFace.
 
-All of the above were selected for **Python 3.13.1** on Windows 11.
+All of the above were selected for **Python 3.13** on Windows 11 (primary tested). The same pins are intended for Ubuntu LTS with Python 3.13.
 
 ## Development
 
@@ -39,7 +39,7 @@ All of the above were selected for **Python 3.13.1** on Windows 11.
 | Ruff | 0.16.3 | MIT | Lint + format |
 | mypy | 2.3.1 | MIT | Static typing |
 
-## Explicitly not included (Phase 3)
+## Explicitly not included (Phase 6)
 
 | Package | Reason |
 | --- | --- |
@@ -47,8 +47,7 @@ All of the above were selected for **Python 3.13.1** on Windows 11.
 | insightface | Pretrained weights are **not suitable for commercial use** |
 | Redis / Celery | Not needed for one local process |
 | PostgreSQL drivers | SQLite only |
-| Docker | Native Windows is the run path |
-| SFace / embedding extra packages | Phase 4 |
+| Docker | Native Windows/Linux is the run path |
 
 ## Known warnings
 

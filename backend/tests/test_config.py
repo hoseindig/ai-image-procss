@@ -75,6 +75,9 @@ def test_face_detection_defaults() -> None:
     assert settings.face_alignment_enabled is True
     assert settings.face_alignment_width == 112
     assert settings.face_alignment_height == 112
+    assert settings.face_embedding_enabled is True
+    assert settings.face_embedding_model_path == "models/face/sface/2021dec.onnx"
+    assert settings.face_embedding_threads == 2
 
 
 def test_invalid_confidence_threshold_is_rejected() -> None:

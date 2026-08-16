@@ -59,6 +59,7 @@ class OnnxRuntimeEngine:
         options = ort.SessionOptions()
         options.intra_op_num_threads = intra_op_num_threads
         options.inter_op_num_threads = inter_op_num_threads
+        options.log_severity_level = 3
         try:
             session = ort.InferenceSession(
                 str(model_path),

@@ -1,7 +1,8 @@
-"""Vision package. Application code depends on protocols, not YuNet."""
+"""Vision package. Application code depends on protocols, not concrete models."""
 
 from app.vision.align import AlignedFace, FaceAligner
 from app.vision.detector import FaceDetector
+from app.vision.embedder import FaceEmbedder, FaceEmbedding
 from app.vision.exceptions import (
     InferenceError,
     InferenceProviderError,
@@ -15,6 +16,9 @@ from app.vision.tracker import FaceTracker
 from app.vision.types import (
     BoundingBox,
     DetectionSnapshot,
+    EmbeddingInfo,
+    EmbeddingSkipReason,
+    EmbeddingStatus,
     FaceDetection,
     FaceLandmarks,
     FaceQuality,
@@ -29,9 +33,14 @@ __all__ = [
     "BoundingBox",
     "DetectionRuntime",
     "DetectionSnapshot",
+    "EmbeddingInfo",
+    "EmbeddingSkipReason",
+    "EmbeddingStatus",
     "FaceAligner",
     "FaceDetection",
     "FaceDetector",
+    "FaceEmbedder",
+    "FaceEmbedding",
     "FaceLandmarks",
     "FaceQuality",
     "FaceQualityAssessor",

@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from app.cameras.manager import CameraManager
-from app.schemas.detection import DetectionResponse, FaceDetectionDto, FaceQualityDto, FaceTrackDto
+from app.schemas.detection import (
+    DetectionResponse,
+    FaceDetectionDto,
+    FaceEmbeddingDto,
+    FaceQualityDto,
+    FaceTrackDto,
+)
 from app.vision.runtime import DetectionRuntime
-from app.vision.types import DetectionSnapshot, FaceQuality
+from app.vision.types import DetectionSnapshot, EmbeddingInfo, FaceQuality
 
 
 class DetectionService:
@@ -27,6 +33,7 @@ def _to_response(
     if snapshot is None:
         return DetectionResponse(camera_id=camera_id, enabled=enabled)
     quality_by_id = {item.track_id: item for item in snapshot.qualities}
+    embedding_by_id = {item.track_id: item for item in snapshot.embeddings}
     aligned_ids = set(snapshot.aligned_track_ids)
     return DetectionResponse(
         camera_id=camera_id,
@@ -53,6 +60,7 @@ def _to_response(
                     quality_by_id.get(track.track_id),
                     track.track_id in aligned_ids,
                 ),
+                embedding=_embedding_dto(embedding_by_id.get(track.track_id)),
             )
             for track in snapshot.tracks
         ],
@@ -60,7 +68,9 @@ def _to_response(
         tracking_ms=snapshot.tracking_ms,
         quality_ms=snapshot.quality_ms,
         alignment_ms=snapshot.alignment_ms,
+        embedding_ms=snapshot.embedding_ms,
         aligned_count=snapshot.aligned_count,
+        embedded_count=snapshot.embedded_count,
         error=snapshot.error,
     )
 
@@ -77,4 +87,15 @@ def _quality_dto(quality: FaceQuality | None, aligned: bool) -> FaceQualityDto |
         brightness=quality.brightness,
         landmarks_valid=quality.landmarks_valid,
         aligned=aligned,
+    )
+
+
+def _embedding_dto(info: EmbeddingInfo | None) -> FaceEmbeddingDto | None:
+    if info is None:
+        return None
+    return FaceEmbeddingDto(
+        status=info.status,
+        dimension=info.dimension,
+        reason=info.reason,
+        normalized=info.normalized,
     )

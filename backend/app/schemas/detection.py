@@ -6,7 +6,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.vision.types import BoundingBox, FaceLandmarks, QualityRejectionReason, TrackState
+from app.vision.types import (
+    BoundingBox,
+    EmbeddingSkipReason,
+    EmbeddingStatus,
+    FaceLandmarks,
+    QualityRejectionReason,
+    TrackState,
+)
 
 
 class FaceDetectionDto(BaseModel):
@@ -26,6 +33,15 @@ class FaceQualityDto(BaseModel):
     aligned: bool = False
 
 
+class FaceEmbeddingDto(BaseModel):
+    """Embedding metadata only. Raw vectors are never exposed on this API."""
+
+    status: EmbeddingStatus
+    dimension: int | None = Field(default=None, ge=1)
+    reason: EmbeddingSkipReason | None = None
+    normalized: bool = False
+
+
 class FaceTrackDto(BaseModel):
     track_id: int = Field(ge=1)
     state: TrackState
@@ -35,6 +51,7 @@ class FaceTrackDto(BaseModel):
     age_frames: int = Field(ge=1)
     missed_frames: int = Field(ge=0)
     quality: FaceQualityDto | None = None
+    embedding: FaceEmbeddingDto | None = None
 
 
 class DetectionResponse(BaseModel):
@@ -47,5 +64,7 @@ class DetectionResponse(BaseModel):
     tracking_ms: float | None = None
     quality_ms: float | None = None
     alignment_ms: float | None = None
+    embedding_ms: float | None = None
     aligned_count: int = Field(default=0, ge=0)
+    embedded_count: int = Field(default=0, ge=0)
     error: str | None = None

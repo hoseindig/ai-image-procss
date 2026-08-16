@@ -54,6 +54,9 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         "FACE_ALIGNMENT_ENABLED",
         "FACE_ALIGNMENT_WIDTH",
         "FACE_ALIGNMENT_HEIGHT",
+        "FACE_EMBEDDING_ENABLED",
+        "FACE_EMBEDDING_MODEL_PATH",
+        "FACE_EMBEDDING_THREADS",
     ):
         monkeypatch.delenv(key, raising=False)
     database_path = tmp_path / "test.db"
@@ -67,6 +70,7 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         log_level="INFO",
         cors_origins=["http://localhost:3000"],
         face_detection_enabled=False,
+        face_embedding_enabled=False,
     )
 
 

@@ -7,10 +7,12 @@ from pathlib import Path
 from app.core.config import PROJECT_ROOT, Settings
 from app.core.logging import get_logger
 from app.vision.align import AlignConfig, FaceAligner, LandmarkFaceAligner
+from app.vision.embedder import FaceEmbedder
 from app.vision.engine import OnnxRuntimeEngine
 from app.vision.exceptions import ModelNotFoundError
 from app.vision.iou_tracker import IoUCentroidFaceTracker, TrackerConfig
 from app.vision.quality import FaceQualityAssessor, HeuristicFaceQualityAssessor, QualityConfig
+from app.vision.sface import SFaceConfig, SFaceEmbedder
 from app.vision.tracker import FaceTracker
 from app.vision.yunet import YuNetConfig, YuNetFaceDetector
 
@@ -27,7 +29,7 @@ def resolve_model_path(path: str) -> Path:
 def create_face_detector(settings: Settings) -> YuNetFaceDetector:
     model_path = resolve_model_path(settings.face_detection_model_path)
     if not model_path.is_file():
-        raise ModelNotFoundError(str(model_path))
+        raise ModelNotFoundError(str(model_path), model_name="YuNet")
     logger.info("Loading YuNet model path=%s", model_path)
     engine = OnnxRuntimeEngine(model_path)
     config = YuNetConfig(
@@ -74,3 +76,17 @@ def create_face_aligner(settings: Settings) -> FaceAligner | None:
         output_height=settings.face_alignment_height,
     )
     return LandmarkFaceAligner(config)
+
+
+def create_face_embedder(settings: Settings) -> FaceEmbedder | None:
+    if not settings.face_embedding_enabled:
+        return None
+    model_path = resolve_model_path(settings.face_embedding_model_path)
+    if not model_path.is_file():
+        raise ModelNotFoundError(str(model_path), model_name="SFace")
+    logger.info("Loading SFace model path=%s", model_path)
+    engine = OnnxRuntimeEngine(
+        model_path,
+        intra_op_num_threads=settings.face_embedding_threads,
+    )
+    return SFaceEmbedder(engine, SFaceConfig())

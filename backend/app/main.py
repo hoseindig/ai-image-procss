@@ -16,7 +16,7 @@ from app.core.exceptions import register_exception_handlers
 from app.core.logging import get_logger, setup_logging
 from app.db.session import Database
 from app.vision.detector import FaceDetector
-from app.vision.factory import create_face_detector
+from app.vision.factory import create_face_detector, create_face_embedder
 from app.vision.runtime import DetectionRuntime
 
 
@@ -44,7 +44,8 @@ def create_app(
         detector = face_detector
         if detector is None and resolved.face_detection_enabled:
             detector = create_face_detector(resolved)
-        runtime = DetectionRuntime(detector, resolved, manager)
+        embedder = create_face_embedder(resolved)
+        runtime = DetectionRuntime(detector, resolved, manager, embedder=embedder)
         app.state.settings = resolved
         app.state.started_at = datetime.now(UTC)
         app.state.database = Database(resolved.database_url)

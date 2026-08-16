@@ -26,6 +26,8 @@ class FaceDetectionHealthStatus(BaseModel):
     tracking_enabled: bool
     quality_enabled: bool = False
     alignment_enabled: bool = False
+    embedding_enabled: bool = False
+    embedding_provider: str | None = None
 
 
 class SystemStatusResponse(BaseModel):

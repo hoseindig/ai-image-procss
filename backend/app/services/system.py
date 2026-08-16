@@ -58,6 +58,8 @@ class SystemStatusService:
                 tracking_enabled=detection_runtime.tracking_enabled,
                 quality_enabled=detection_runtime.quality_enabled,
                 alignment_enabled=detection_runtime.alignment_enabled,
+                embedding_enabled=detection_runtime.embedding_enabled,
+                embedding_provider=detection_runtime.embedding_provider,
             ),
         )
 

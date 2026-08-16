@@ -12,6 +12,7 @@ from numpy.typing import NDArray
 from app.vision.align import AlignedFace
 from app.vision.types import (
     BoundingBox,
+    EmbeddingInfo,
     FaceDetection,
     FaceLandmarks,
     FaceQuality,
@@ -41,10 +42,12 @@ def draw_tracks(
     image: NDArray[np.uint8],
     tracks: list[FaceTrack],
     qualities: list[FaceQuality] | None = None,
+    embeddings: list[EmbeddingInfo] | None = None,
 ) -> NDArray[np.uint8]:
-    """Return a copy of `image` with track IDs, optional quality, boxes, landmarks."""
+    """Return a copy of `image` with track IDs, optional quality/embedding, boxes."""
     output = np.ascontiguousarray(image.copy())
     quality_by_id = {item.track_id: item for item in qualities or []}
+    embedding_by_id = {item.track_id: item for item in embeddings or []}
     for track in tracks:
         color = _track_color(track.state)
         lines = [
@@ -59,6 +62,15 @@ def draw_tracks(
                 lines.append("Quality: REJECTED")
                 reason = quality.reasons[0].value if quality.reasons else "rejected"
                 lines.append(f"Reason: {reason}")
+        embedding = embedding_by_id.get(track.track_id)
+        if embedding is not None:
+            if embedding.status.value == "generated" and embedding.dimension is not None:
+                lines.append(f"Embedding: {embedding.dimension}-D")
+            elif embedding.status.value == "skipped":
+                skip = embedding.reason.value if embedding.reason is not None else "skipped"
+                lines.append(f"Embedding: skipped ({skip})")
+            else:
+                lines.append("Embedding: failed")
         _draw_box(output, track.bounding_box, track.landmarks, lines, color)
     return output
 
