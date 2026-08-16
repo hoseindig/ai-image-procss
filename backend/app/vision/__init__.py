@@ -11,7 +11,6 @@ from app.vision.exceptions import (
     VisionError,
 )
 from app.vision.quality import FaceQualityAssessor
-from app.vision.runtime import DetectionRuntime
 from app.vision.tracker import FaceTracker
 from app.vision.types import (
     BoundingBox,
@@ -31,7 +30,6 @@ from app.vision.types import (
 __all__ = [
     "AlignedFace",
     "BoundingBox",
-    "DetectionRuntime",
     "DetectionSnapshot",
     "EmbeddingInfo",
     "EmbeddingSkipReason",

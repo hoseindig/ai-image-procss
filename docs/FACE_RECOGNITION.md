@@ -10,6 +10,7 @@ Phase 7B compares a live **128-D L2-normalized SFace embedding** to the SQLite e
 FaceEmbedding
     → FaceRecognizer (GalleryFaceRecognizer)
     → RecognitionResult (matched | unknown | skipped | error)
+    → EventService (Phase 8 audit; cooldown; no embeddings stored)
 ```
 
 Per person score = **maximum** cosine similarity across that person's enrollment samples (no averaging). Best person = highest person score. Match when:

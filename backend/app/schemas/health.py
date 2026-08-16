@@ -30,6 +30,7 @@ class FaceDetectionHealthStatus(BaseModel):
     embedding_provider: str | None = None
     recognition_enabled: bool = False
     recognition_threshold: float | None = None
+    event_logging_enabled: bool = False
 
 
 class SystemStatusResponse(BaseModel):

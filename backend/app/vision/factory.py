@@ -7,6 +7,7 @@ from pathlib import Path
 from app.core.config import PROJECT_ROOT, Settings
 from app.core.logging import get_logger
 from app.db.session import Database
+from app.services.event import EventService, EventServiceConfig
 from app.vision.align import AlignConfig, FaceAligner, LandmarkFaceAligner
 from app.vision.embedder import FaceEmbedder
 from app.vision.engine import OnnxRuntimeEngine
@@ -110,3 +111,22 @@ def create_face_recognizer(
         SqlAlchemyGalleryStore(database),
         threshold=settings.face_recognition_threshold,
     )
+
+
+def create_event_service(settings: Settings, database: Database) -> EventService | None:
+    if not settings.event_logging_enabled:
+        return None
+    config = EventServiceConfig(
+        enabled=True,
+        recognized_cooldown_seconds=settings.event_recognized_cooldown_seconds,
+        unknown_cooldown_seconds=settings.event_unknown_cooldown_seconds,
+        default_page_size=settings.event_api_default_page_size,
+        max_page_size=settings.event_api_max_page_size,
+        retention_days=settings.event_retention_days,
+    )
+    logger.info(
+        "Event service ready recognized_cooldown_s=%.1f unknown_cooldown_s=%.1f",
+        config.recognized_cooldown_seconds,
+        config.unknown_cooldown_seconds,
+    )
+    return EventService(database, config)

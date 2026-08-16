@@ -80,6 +80,10 @@ def test_face_detection_defaults() -> None:
     assert settings.face_embedding_threads == 2
     assert settings.face_recognition_enabled is True
     assert settings.face_recognition_threshold == 0.363
+    assert settings.event_logging_enabled is True
+    assert settings.event_recognized_cooldown_seconds == 10.0
+    assert settings.event_unknown_cooldown_seconds == 10.0
+    assert settings.event_retention_days == 90
 
 
 def test_invalid_confidence_threshold_is_rejected() -> None:

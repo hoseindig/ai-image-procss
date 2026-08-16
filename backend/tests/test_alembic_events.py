@@ -1,4 +1,4 @@
-"""Alembic upgrade / downgrade for person enrollment schema."""
+"""Alembic upgrade/downgrade for events table."""
 
 from __future__ import annotations
 
@@ -14,10 +14,9 @@ from app.core.config import BACKEND_ROOT, resolve_database_url
 
 @pytest.fixture
 def alembic_database_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
-    db_path = tmp_path / "alembic_person.db"
+    db_path = tmp_path / "alembic_events.db"
     url = resolve_database_url(f"sqlite:///{db_path.as_posix()}")
     monkeypatch.setenv("DATABASE_URL", url)
-    # Prevent project .env from overriding if somehow preferred incorrectly.
     monkeypatch.chdir(BACKEND_ROOT)
     return url
 
@@ -26,15 +25,14 @@ def _alembic_config() -> Config:
     return Config(str(BACKEND_ROOT / "alembic.ini"))
 
 
-def test_alembic_upgrade_downgrade_upgrade(alembic_database_url: str) -> None:
+def test_alembic_events_upgrade_downgrade(alembic_database_url: str) -> None:
     cfg = _alembic_config()
     command.upgrade(cfg, "head")
-
     engine = create_engine(alembic_database_url)
     try:
         tables = set(inspect(engine).get_table_names())
+        assert "events" in tables
         assert "persons" in tables
-        assert "enrollment_samples" in tables
         with engine.connect() as connection:
             version = connection.execute(
                 text("SELECT version_num FROM alembic_version")
@@ -43,27 +41,23 @@ def test_alembic_upgrade_downgrade_upgrade(alembic_database_url: str) -> None:
     finally:
         engine.dispose()
 
-    command.downgrade(cfg, "0001_initial")
+    command.downgrade(cfg, "0002_person_enrollment")
     engine = create_engine(alembic_database_url)
     try:
         tables = set(inspect(engine).get_table_names())
-        assert "persons" not in tables
-        assert "enrollment_samples" not in tables
         assert "events" not in tables
+        assert "persons" in tables
         with engine.connect() as connection:
             version = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert version == "0001_initial"
+            assert version == "0002_person_enrollment"
     finally:
         engine.dispose()
 
     command.upgrade(cfg, "head")
     engine = create_engine(alembic_database_url)
     try:
-        tables = set(inspect(engine).get_table_names())
-        assert "persons" in tables
-        assert "enrollment_samples" in tables
-        assert "events" in tables
+        assert "events" in set(inspect(engine).get_table_names())
     finally:
         engine.dispose()

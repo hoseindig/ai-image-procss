@@ -15,6 +15,7 @@ from datetime import datetime
 from app.cameras.exceptions import CameraError
 from app.cameras.types import Frame
 from app.core.logging import get_logger
+from app.services.event import EventService
 from app.vision.align import AlignedFace, FaceAligner
 from app.vision.detector import FaceDetector
 from app.vision.embedder import FaceEmbedder, FaceEmbedding
@@ -59,6 +60,7 @@ class DetectionWorker:
         aligner: FaceAligner | None = None,
         embedder: FaceEmbedder | None = None,
         recognizer: FaceRecognizer | None = None,
+        event_service: EventService | None = None,
     ) -> None:
         self._camera_id = camera_id
         self._frame_getter = frame_getter
@@ -68,6 +70,7 @@ class DetectionWorker:
         self._aligner = aligner
         self._embedder = embedder
         self._recognizer = recognizer
+        self._event_service = event_service
         self._interval_s = max(interval_ms, 1) / 1000.0
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -95,7 +98,7 @@ class DetectionWorker:
         thread.start()
         logger.info(
             "Detection worker started camera_id=%s interval_ms=%s tracking=%s "
-            "quality=%s alignment=%s embedding=%s recognition=%s",
+            "quality=%s alignment=%s embedding=%s recognition=%s events=%s",
             self._camera_id,
             int(self._interval_s * 1000),
             self._tracker is not None,
@@ -103,6 +106,7 @@ class DetectionWorker:
             self._aligner is not None,
             self._embedder is not None,
             self._recognizer is not None,
+            self._event_service is not None,
         )
 
     def stop(self) -> None:
@@ -368,6 +372,12 @@ class DetectionWorker:
                     embedding_infos=embedding_infos,
                 )
                 recognitions.append(_recognition_info(result))
+                if self._event_service is not None:
+                    self._event_service.record_from_recognition(
+                        self._camera_id,
+                        result,
+                        occurred_at=frame.timestamp,
+                    )
             if recognitions:
                 recognition_ms = (time.perf_counter() - recog_started) * 1000.0
 

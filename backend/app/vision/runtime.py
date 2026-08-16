@@ -9,6 +9,7 @@ from app.cameras.source import CameraSource
 from app.cameras.types import Frame
 from app.core.config import Settings
 from app.core.logging import get_logger
+from app.services.event import EventService
 from app.vision.align import AlignedFace
 from app.vision.detector import FaceDetector
 from app.vision.embedder import FaceEmbedder, FaceEmbedding
@@ -35,12 +36,14 @@ class DetectionRuntime:
         *,
         embedder: FaceEmbedder | None = None,
         recognizer: FaceRecognizer | None = None,
+        event_service: EventService | None = None,
     ) -> None:
         self._detector = detector
         self._settings = settings
         self._camera_manager = camera_manager
         self._embedder = embedder
         self._recognizer = recognizer
+        self._event_service = event_service
         self._lock = threading.RLock()
         self._workers: dict[str, DetectionWorker] = {}
 
@@ -92,6 +95,10 @@ class DetectionRuntime:
             return None
         return self._settings.face_recognition_threshold
 
+    @property
+    def event_logging_enabled(self) -> bool:
+        return self._event_service is not None and self._event_service.enabled
+
     def attach(self, camera_id: str) -> None:
         if not self.enabled or self._detector is None:
             return
@@ -112,6 +119,7 @@ class DetectionRuntime:
                 aligner=create_face_aligner(self._settings),
                 embedder=self._embedder,
                 recognizer=self._recognizer,
+                event_service=self._event_service,
             )
             self._workers[camera_id] = worker
         worker.start()

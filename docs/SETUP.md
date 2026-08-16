@@ -1,6 +1,6 @@
-# Setup (Phase 7B)
+# Setup (Phase 8)
 
-Phase 7B runs the FastAPI backend with USB webcam capture, YuNet detection, IoU tracking, face quality/alignment, SFace embedding, SQLite person enrollment, and **local gallery recognition**. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the model files are installed.
+Phase 8 runs the FastAPI backend with USB webcam capture, YuNet, tracking, quality/alignment, SFace embedding, person enrollment, gallery recognition, and **SQLite recognition audit events**. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the model files are installed.
 
 Automated tests **do not** need a physical webcam. A fake camera and a fake detector are used instead. Tests that need the real ONNX file are skipped if it is not present.
 
@@ -107,6 +107,12 @@ Settings are loaded from, in order of precedence:
 | `FACE_EMBEDDING_THREADS` | `2` | ONNX Runtime intra-op threads for SFace |
 | `FACE_RECOGNITION_ENABLED` | `true` | Compare embeddings to the active enrollment gallery |
 | `FACE_RECOGNITION_THRESHOLD` | `0.363` | Cosine match when similarity ≥ threshold (engineering default; see `docs/FACE_RECOGNITION.md`) |
+| `EVENT_LOGGING_ENABLED` | `true` | Persist recognized / unknown_face audit events |
+| `EVENT_RECOGNIZED_COOLDOWN_SECONDS` | `10` | Min seconds between events for same camera+person |
+| `EVENT_UNKNOWN_COOLDOWN_SECONDS` | `10` | Min seconds between events for same camera+track |
+| `EVENT_RETENTION_DAYS` | `90` | Future cleanup policy (not auto-enforced yet) |
+| `EVENT_API_DEFAULT_PAGE_SIZE` | `50` | Default `/api/events` page size |
+| `EVENT_API_MAX_PAGE_SIZE` | `200` | Max `/api/events` page size |
 
 Do not commit `.env`.
 
@@ -141,13 +147,13 @@ From `backend/` with the virtualenv active:
 alembic upgrade head
 ```
 
-Revision `0002_person_enrollment` creates `persons` and `enrollment_samples`. See `docs/PERSON_ENROLLMENT.md`.
+Revision `0003_events` creates the `events` audit table. See `docs/EVENTS.md` and `docs/PERSON_ENROLLMENT.md`.
 
 Useful commands:
 
 ```powershell
 alembic current
-alembic downgrade 0001_initial
+alembic downgrade 0002_person_enrollment
 alembic upgrade head
 alembic history
 ```
@@ -162,7 +168,7 @@ Stop the app before a simple file copy, or use:
 sqlite3 data\app.db ".backup 'data\app-backup.db'"
 ```
 
-Details: `docs/PERSON_ENROLLMENT.md`.
+Details: `docs/PERSON_ENROLLMENT.md` and `docs/EVENTS.md`.
 
 ## Start the backend
 
@@ -273,18 +279,20 @@ Requested resolution/FPS are hints. The printed “actual” size is what the dr
 
 `GET /api/system/status` `camera.available` means a camera is **registered** and not in an error state. It does not open the device. A real open happens only on `POST /api/cameras/{id}/start` or `scripts/test_webcam.py`.
 
-## Development flow (Phase 7B)
+## Development flow (Phase 8)
 
 1. Create/activate `backend/.venv` (Windows PowerShell or Linux bash)
 2. `pip install -e ".[dev]"`
 3. Copy `.env.example` to `.env`
 4. From the project root: `python scripts/download_models.py`
-5. `alembic upgrade head` (creates `persons` / `enrollment_samples`)
+5. `alembic upgrade head` (persons, enrollments, events)
 6. `pytest`, `ruff check .`, `ruff format --check .`, `mypy .`
 7. `python -m app`
-8. Create a person + enrollment (`docs/PERSON_ENROLLMENT.md`)
-9. Optional: `scripts/test_webcam.py --show-recognition`
-10. Optional: `scripts/benchmark_face_recognition.py`
+8. Enroll a person (`docs/PERSON_ENROLLMENT.md`)
+9. Optional: `scripts/test_webcam.py --show-recognition --log-events`
+10. Optional: `scripts/benchmark_events.py`
+11. Optional: `GET /api/events`
+
 
 ## Lint
 

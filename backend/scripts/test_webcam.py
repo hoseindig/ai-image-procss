@@ -52,6 +52,7 @@ try:
     from app.vision.align import AlignedFace
     from app.vision.exceptions import ModelNotFoundError, VisionError
     from app.vision.factory import (
+        create_event_service,
         create_face_aligner,
         create_face_detector,
         create_face_embedder,
@@ -112,6 +113,11 @@ def main() -> int:
         help="Match against SQLite gallery and overlay person/similarity (not %)",
     )
     parser.add_argument(
+        "--log-events",
+        action="store_true",
+        help="Persist recognition events via EventService (cooldown applies)",
+    )
+    parser.add_argument(
         "--log-quality",
         action="store_true",
         help="Print per-track quality metrics when a detection pass runs",
@@ -170,14 +176,20 @@ def main() -> int:
     aligner = create_face_aligner(settings) if detector is not None else None
     embedder = None
     recognizer = None
+    event_service = None
     database: Database | None = None
-    need_embed = args.show_embedding or args.show_recognition or settings.face_embedding_enabled
-    need_recog = args.show_recognition or settings.face_recognition_enabled
+    need_embed = (
+        args.show_embedding
+        or args.show_recognition
+        or args.log_events
+        or settings.face_embedding_enabled
+    )
+    need_recog = args.show_recognition or args.log_events or settings.face_recognition_enabled
     if detector is not None and need_embed:
         try:
             embedder = create_face_embedder(settings)
         except (ModelNotFoundError, VisionError) as exc:
-            if args.show_embedding or args.show_recognition:
+            if args.show_embedding or args.show_recognition or args.log_events:
                 message = exc.message if isinstance(exc, VisionError) else str(exc)
                 print(message, file=sys.stderr)
                 return 1
@@ -185,6 +197,8 @@ def main() -> int:
     if detector is not None and need_recog and embedder is not None:
         database = Database(settings.database_url)
         recognizer = create_face_recognizer(settings, database)
+        if args.log_events or settings.event_logging_enabled:
+            event_service = create_event_service(settings, database)
     phase_stats: dict[str, dict[str, int]] = {
         "A": {"seen": 0, "accepted": 0, "aligned": 0, "rejected": 0},
         "B": {"seen": 0, "accepted": 0, "aligned": 0, "rejected": 0},
@@ -193,6 +207,7 @@ def main() -> int:
     }
     reason_counts: dict[str, dict[str, int]] = {key: {} for key in phase_stats}
     track_ids_seen: set[int] = set()
+    events_written = 0
     if args.show_aligned and aligner is None:
         print(
             "--show-aligned requires FACE_ALIGNMENT_ENABLED=true and a working aligner.",
@@ -209,6 +224,13 @@ def main() -> int:
         print(
             "--show-recognition requires FACE_RECOGNITION_ENABLED=true, SFace, "
             "and a migrated SQLite gallery.",
+            file=sys.stderr,
+        )
+        return 1
+    if args.log_events and event_service is None:
+        print(
+            "--log-events requires EVENT_LOGGING_ENABLED=true, recognition, "
+            "and a migrated SQLite database.",
             file=sys.stderr,
         )
         return 1
@@ -230,10 +252,12 @@ def main() -> int:
                 f"alignment={aligner is not None} "
                 f"embedding={embedder is not None} "
                 f"recognition={recognizer is not None} "
+                f"events={event_service is not None} "
                 f"threshold={settings.face_recognition_threshold} "
                 f"show_aligned={args.show_aligned} "
                 f"show_embedding={args.show_embedding} "
-                f"show_recognition={args.show_recognition}"
+                f"show_recognition={args.show_recognition} "
+                f"log_events={args.log_events}"
             )
         source.start()
         if display:
@@ -352,6 +376,20 @@ def main() -> int:
                             )
                         else:
                             result = recognizer.recognize(embedding_by_track[track.track_id])
+                        if event_service is not None:
+                            written = event_service.record_from_recognition(
+                                config.camera_id,
+                                result,
+                                occurred_at=frame.timestamp,
+                            )
+                            if written is not None:
+                                events_written += 1
+                                if args.log_events:
+                                    print(
+                                        f"event id={written.id} type={written.event_type.value} "
+                                        f"track=#{written.track_id} person={written.person_id} "
+                                        f"sim={written.similarity}"
+                                    )
                         last_recognitions.append(
                             RecognitionInfo(
                                 track_id=result.track_id,
@@ -462,7 +500,7 @@ def main() -> int:
         elapsed = max(time.perf_counter() - started, 1e-6)
         print(
             f"Captured {captured} frames, ~{captured / elapsed:.1f} FPS, "
-            f"detection passes={detected_frames}"
+            f"detection passes={detected_frames}, events_written={events_written}"
         )
         if args.guided_verify:
             print("Guided verify summary:")

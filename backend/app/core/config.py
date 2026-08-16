@@ -114,6 +114,13 @@ class Settings(BaseSettings):
     face_recognition_enabled: bool = Field(default=True)
     # OpenCV SFace FR_COSINE / LFW engineering default; match when similarity >= threshold.
     face_recognition_threshold: float = Field(default=0.363, ge=0.0, le=1.0)
+    event_logging_enabled: bool = Field(default=True)
+    event_recognized_cooldown_seconds: float = Field(default=10.0, ge=0.0)
+    event_unknown_cooldown_seconds: float = Field(default=10.0, ge=0.0)
+    # Future automatic cleanup; not enforced in Phase 8.
+    event_retention_days: int = Field(default=90, ge=1)
+    event_api_default_page_size: int = Field(default=50, ge=1, le=500)
+    event_api_max_page_size: int = Field(default=200, ge=1, le=1000)
 
     @field_validator("app_env", mode="before")
     @classmethod
@@ -172,6 +179,12 @@ class Settings(BaseSettings):
     def validate_brightness_range(self) -> Self:
         if self.face_quality_min_brightness > self.face_quality_max_brightness:
             raise ValueError("FACE_QUALITY_MIN_BRIGHTNESS must be <= FACE_QUALITY_MAX_BRIGHTNESS")
+        return self
+
+    @model_validator(mode="after")
+    def validate_event_page_sizes(self) -> Self:
+        if self.event_api_default_page_size > self.event_api_max_page_size:
+            raise ValueError("EVENT_API_DEFAULT_PAGE_SIZE must be <= EVENT_API_MAX_PAGE_SIZE")
         return self
 
 

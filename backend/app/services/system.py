@@ -62,6 +62,7 @@ class SystemStatusService:
                 embedding_provider=detection_runtime.embedding_provider,
                 recognition_enabled=detection_runtime.recognition_enabled,
                 recognition_threshold=detection_runtime.recognition_threshold,
+                event_logging_enabled=detection_runtime.event_logging_enabled,
             ),
         )
 

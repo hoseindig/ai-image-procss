@@ -15,8 +15,10 @@ from app.core.config import Settings, load_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import get_logger, setup_logging
 from app.db.session import Database
+from app.services.event import EventService, EventServiceConfig
 from app.vision.detector import FaceDetector
 from app.vision.factory import (
+    create_event_service,
     create_face_detector,
     create_face_embedder,
     create_face_recognizer,
@@ -51,18 +53,24 @@ def create_app(
         database = Database(resolved.database_url)
         embedder = create_face_embedder(resolved)
         recognizer = create_face_recognizer(resolved, database)
+        event_service = create_event_service(resolved, database)
         runtime = DetectionRuntime(
             detector,
             resolved,
             manager,
             embedder=embedder,
             recognizer=recognizer,
+            event_service=event_service,
         )
         app.state.settings = resolved
         app.state.started_at = datetime.now(UTC)
         app.state.database = database
         app.state.camera_manager = manager
         app.state.detection_runtime = runtime
+        app.state.event_service = event_service or EventService(
+            database,
+            EventServiceConfig(enabled=False),
+        )
         logger.info("Application started (%s)", resolved.app_env)
         try:
             yield

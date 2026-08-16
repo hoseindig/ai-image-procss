@@ -59,6 +59,12 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         "FACE_EMBEDDING_THREADS",
         "FACE_RECOGNITION_ENABLED",
         "FACE_RECOGNITION_THRESHOLD",
+        "EVENT_LOGGING_ENABLED",
+        "EVENT_RECOGNIZED_COOLDOWN_SECONDS",
+        "EVENT_UNKNOWN_COOLDOWN_SECONDS",
+        "EVENT_RETENTION_DAYS",
+        "EVENT_API_DEFAULT_PAGE_SIZE",
+        "EVENT_API_MAX_PAGE_SIZE",
     ):
         monkeypatch.delenv(key, raising=False)
     database_path = tmp_path / "test.db"
@@ -74,6 +80,7 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         face_detection_enabled=False,
         face_embedding_enabled=False,
         face_recognition_enabled=False,
+        event_logging_enabled=False,
     )
 
 

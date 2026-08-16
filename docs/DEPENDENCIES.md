@@ -1,4 +1,4 @@
-# Dependencies (Phase 7B)
+# Dependencies (Phase 8)
 
 Python package versions are pinned in `backend/pyproject.toml`. Licenses below were taken from the projects’ official packaging metadata / repositories. This is not legal advice.
 
@@ -39,7 +39,7 @@ All of the above were selected for **Python 3.13** on Windows 11 (primary tested
 | Ruff | 0.16.3 | MIT | Lint + format |
 | mypy | 2.3.1 | MIT | Static typing |
 
-## Explicitly not included (Phase 7B)
+## Explicitly not included (Phase 8)
 
 | Package | Reason |
 | --- | --- |

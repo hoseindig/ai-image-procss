@@ -31,5 +31,6 @@ def test_system_status_returns_ok(client: TestClient) -> None:
     assert body["face_detection"]["embedding_provider"] is None
     assert body["face_detection"]["recognition_enabled"] is False
     assert body["face_detection"]["recognition_threshold"] is None
+    assert body["face_detection"]["event_logging_enabled"] is False
     assert "database_url" not in body
     assert "DATABASE_URL" not in response.text
