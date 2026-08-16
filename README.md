@@ -2,7 +2,7 @@
 
 Local, CPU-only face detection and recognition for a USB webcam. No cloud AI APIs and no paid services.
 
-This repository is being built in gated phases. **Phases 0–3 are implemented** (backend foundation, USB camera, YuNet face detection). Recognition and the frontend are not in this phase.
+This repository is being built in gated phases. **Phases 0–4 are implemented** (backend, USB camera, YuNet detection, IoU face tracking). Recognition and the frontend are not in this phase.
 
 See `docs/IMPLEMENTATION_PLAN.md` for the full roadmap.
 
@@ -88,12 +88,13 @@ From `backend/` (requires a physical webcam and the YuNet file; not part of pyte
 .\.venv\Scripts\python.exe scripts/test_webcam.py
 ```
 
-Press Q to quit. Boxes and landmarks are drawn on the preview. Use `--no-detect` for camera-only. See `docs/SETUP.md` for device index, Windows privacy, and “camera in use” issues.
+Press Q to quit. Boxes show **Track #N** plus detection confidence. Use `--no-detect` for camera-only. See `docs/SETUP.md` for device index, Windows privacy, and “camera in use” issues.
 
 CPU baseline (no webcam):
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/benchmark_face_detection.py
+.\.venv\Scripts\python.exe scripts/benchmark_face_tracking.py
 ```
 
 ### Tests, lint, type checks
@@ -119,6 +120,7 @@ ruff format .
 | --- | --- |
 | Selecting a webcam | Phase 2 (done) |
 | Face detection (YuNet) | Phase 3 (done) |
+| Face tracking (IoU) | Phase 4 (done) |
 | Registering a person / recognition | Phases 5–6 |
 | Frontend | Phase 9 |
 | Model download | Phase 3 (done; `scripts/download_models.py`) |
@@ -130,6 +132,7 @@ ruff format .
 - [Architecture](docs/ARCHITECTURE.md)
 - [Dependencies](docs/DEPENDENCIES.md)
 - [Models](docs/MODELS.md)
+- [Tracking](docs/TRACKING.md)
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 
 ## Troubleshooting camera access / CPU tuning

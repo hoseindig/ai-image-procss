@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -45,11 +46,31 @@ class FaceDetection(BaseModel):
     landmarks: FaceLandmarks
 
 
+class TrackState(StrEnum):
+    TENTATIVE = "tentative"
+    CONFIRMED = "confirmed"
+    LOST = "lost"
+
+
+class FaceTrack(BaseModel):
+    """One tracked face. `track_id` is a temporary tracking ID, not a person ID."""
+
+    track_id: int = Field(ge=1)
+    bounding_box: BoundingBox
+    confidence: float = Field(ge=0.0, le=1.0)
+    landmarks: FaceLandmarks
+    age_frames: int = Field(ge=1)
+    missed_frames: int = Field(ge=0)
+    state: TrackState
+
+
 class DetectionSnapshot(BaseModel):
     """Latest completed detection for a camera. Replaced as a whole; never queued."""
 
     camera_id: str
     timestamp: datetime | None = None
     faces: list[FaceDetection] = Field(default_factory=list)
+    tracks: list[FaceTrack] = Field(default_factory=list)
     inference_ms: float | None = None
+    tracking_ms: float | None = None
     error: str | None = None

@@ -24,5 +24,6 @@ def test_system_status_returns_ok(client: TestClient) -> None:
     assert body["face_detection"]["enabled"] is False
     assert body["face_detection"]["model_loaded"] is False
     assert body["face_detection"]["provider"] is None
+    assert body["face_detection"]["tracking_enabled"] is True
     assert "database_url" not in body
     assert "DATABASE_URL" not in response.text

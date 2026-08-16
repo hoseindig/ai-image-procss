@@ -17,6 +17,7 @@ from app.cameras.types import Frame
 from app.core.logging import get_logger
 from app.vision.detector import FaceDetector
 from app.vision.slot import LatestValueSlot
+from app.vision.tracker import FaceTracker
 from app.vision.types import DetectionSnapshot
 
 logger = get_logger("app.vision")
@@ -38,10 +39,12 @@ class DetectionWorker:
         detector: FaceDetector,
         *,
         interval_ms: int,
+        tracker: FaceTracker | None = None,
     ) -> None:
         self._camera_id = camera_id
         self._frame_getter = frame_getter
         self._detector = detector
+        self._tracker = tracker
         self._interval_s = max(interval_ms, 1) / 1000.0
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -64,9 +67,10 @@ class DetectionWorker:
             self._running = True
         thread.start()
         logger.info(
-            "Detection worker started camera_id=%s interval_ms=%s",
+            "Detection worker started camera_id=%s interval_ms=%s tracking=%s",
             self._camera_id,
             int(self._interval_s * 1000),
+            self._tracker is not None,
         )
 
     def stop(self) -> None:
@@ -82,6 +86,8 @@ class DetectionWorker:
         with self._lock:
             self._thread = None
             self._running = False
+        if self._tracker is not None:
+            logger.info("Face tracker stopped camera_id=%s", self._camera_id)
         logger.info("Detection worker stopped camera_id=%s", self._camera_id)
 
     def is_running(self) -> bool:
@@ -126,6 +132,19 @@ class DetectionWorker:
                 self._stop_event.wait(_ERROR_BACKOFF_SECONDS)
                 continue
             inference_ms = (time.perf_counter() - started) * 1000.0
+            tracks = []
+            tracking_ms: float | None = None
+            if self._tracker is not None:
+                track_started = time.perf_counter()
+                try:
+                    tracks = self._tracker.update(faces)
+                except Exception as exc:
+                    logger.exception("Face tracking failed camera_id=%s", self._camera_id)
+                    self._store_error(str(exc) or "Face tracking failed")
+                    last_infer = time.monotonic()
+                    self._stop_event.wait(_ERROR_BACKOFF_SECONDS)
+                    continue
+                tracking_ms = (time.perf_counter() - track_started) * 1000.0
             last_infer = time.monotonic()
             last_frame_at = frame.timestamp
             self._results.put(
@@ -133,7 +152,9 @@ class DetectionWorker:
                     camera_id=self._camera_id,
                     timestamp=frame.timestamp,
                     faces=faces,
+                    tracks=tracks,
                     inference_ms=inference_ms,
+                    tracking_ms=tracking_ms,
                     error=None,
                 )
             )
@@ -145,7 +166,9 @@ class DetectionWorker:
                 camera_id=self._camera_id,
                 timestamp=None,
                 faces=[],
+                tracks=[],
                 inference_ms=None,
+                tracking_ms=None,
                 error=message,
             )
         )

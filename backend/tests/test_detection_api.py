@@ -41,6 +41,7 @@ def test_detections_before_start_are_empty(detection_client: TestClient) -> None
     assert body["camera_id"] == "default"
     assert body["enabled"] is True
     assert body["faces"] == []
+    assert body["tracks"] == []
     assert body["timestamp"] is None
 
 
@@ -60,6 +61,11 @@ def test_start_camera_returns_latest_detections(detection_client: TestClient) ->
     assert face.landmarks.nose is not None
     assert face.landmarks.left_mouth is not None
     assert face.landmarks.right_mouth is not None
+    assert len(body.tracks) == 1
+    track = body.tracks[0]
+    assert track.track_id == 1
+    assert track.bounding_box.x == 8.0
+    assert track.state.value in {"tentative", "confirmed"}
     status = detection_client.get("/api/system/status").json()
     assert status["face_detection"]["enabled"] is True
     assert status["face_detection"]["model_loaded"] is True

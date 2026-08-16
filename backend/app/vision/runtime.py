@@ -10,6 +10,7 @@ from app.cameras.types import Frame
 from app.core.config import Settings
 from app.core.logging import get_logger
 from app.vision.detector import FaceDetector
+from app.vision.factory import create_face_tracker
 from app.vision.types import DetectionSnapshot
 from app.vision.worker import DetectionWorker, FrameGetter
 
@@ -46,6 +47,10 @@ class DetectionRuntime:
         provider = getattr(self._detector, "provider", None)
         return provider if isinstance(provider, str) else None
 
+    @property
+    def tracking_enabled(self) -> bool:
+        return self._settings.face_tracking_enabled
+
     def attach(self, camera_id: str) -> None:
         if not self.enabled or self._detector is None:
             return
@@ -61,6 +66,7 @@ class DetectionRuntime:
                 _frame_getter(source),
                 self._detector,
                 interval_ms=self._settings.face_detection_inference_interval_ms,
+                tracker=create_face_tracker(self._settings),
             )
             self._workers[camera_id] = worker
         worker.start()

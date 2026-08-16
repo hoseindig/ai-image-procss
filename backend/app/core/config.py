@@ -90,6 +90,12 @@ class Settings(BaseSettings):
     face_detection_input_height: int = Field(default=640, ge=32)
     face_detection_max_faces: int = Field(default=10, ge=1)
     face_detection_inference_interval_ms: int = Field(default=100, ge=1)
+    face_tracking_enabled: bool = Field(default=True)
+    face_tracking_iou_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+    face_tracking_max_centroid_distance: float = Field(default=100.0, ge=0.0)
+    face_tracking_max_missed_frames: int = Field(default=5, ge=0)
+    face_tracking_min_confirmed_frames: int = Field(default=2, ge=1)
+    face_tracking_max_tracks: int = Field(default=20, ge=1)
 
     @field_validator("app_env", mode="before")
     @classmethod

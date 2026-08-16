@@ -60,8 +60,19 @@ def test_face_detection_defaults() -> None:
     assert settings.face_detection_input_width == 640
     assert settings.face_detection_input_height == 640
     assert settings.face_detection_inference_interval_ms == 100
+    assert settings.face_tracking_enabled is True
+    assert settings.face_tracking_iou_threshold == 0.3
+    assert settings.face_tracking_max_centroid_distance == 100.0
+    assert settings.face_tracking_max_missed_frames == 5
+    assert settings.face_tracking_min_confirmed_frames == 2
+    assert settings.face_tracking_max_tracks == 20
 
 
 def test_invalid_confidence_threshold_is_rejected() -> None:
     with pytest.raises(ValidationError):
         IsolatedSettings(face_detection_confidence_threshold=1.5)
+
+
+def test_invalid_tracking_iou_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        IsolatedSettings(face_tracking_iou_threshold=1.5)

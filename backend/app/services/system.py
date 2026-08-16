@@ -55,6 +55,7 @@ class SystemStatusService:
                 model_loaded=detection_runtime.model_loaded,
                 provider=detection_runtime.provider,
                 last_inference_ms=detection_runtime.last_inference_ms(),
+                tracking_enabled=detection_runtime.tracking_enabled,
             ),
         )
 

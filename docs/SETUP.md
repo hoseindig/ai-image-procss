@@ -1,6 +1,6 @@
-# Setup (Phase 3)
+# Setup (Phase 4)
 
-Phase 3 runs the FastAPI backend with USB webcam capture and **local YuNet face detection**. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the YuNet file are installed.
+Phase 4 runs the FastAPI backend with USB webcam capture, local YuNet face detection, and IoU/centroid tracking. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the YuNet file are installed.
 
 Automated tests **do not** need a physical webcam. A fake camera and a fake detector are used instead. Tests that need the real ONNX file are skipped if it is not present.
 
@@ -80,6 +80,12 @@ Settings are loaded from, in order of precedence:
 | `FACE_DETECTION_INPUT_HEIGHT` | `640` | Must match the 2023mar ONNX graph |
 | `FACE_DETECTION_MAX_FACES` | `10` | After NMS |
 | `FACE_DETECTION_INFERENCE_INTERVAL_MS` | `100` | Detection worker period; camera FPS can be higher |
+| `FACE_TRACKING_ENABLED` | `true` | Associate detections across frames |
+| `FACE_TRACKING_IOU_THRESHOLD` | `0.3` | Minimum IoU for an IoU match |
+| `FACE_TRACKING_MAX_CENTROID_DISTANCE` | `100` | Pixel fallback when IoU is low |
+| `FACE_TRACKING_MAX_MISSED_FRAMES` | `5` | Consecutive misses a track can survive |
+| `FACE_TRACKING_MIN_CONFIRMED_FRAMES` | `2` | Hits before a track is `confirmed` |
+| `FACE_TRACKING_MAX_TRACKS` | `20` | Cap on simultaneous tracks |
 
 Do not commit `.env`.
 
@@ -188,7 +194,7 @@ Without activating the venv:
 
 Optional flags: `--index 1`, `--width 640`, `--height 480`, `--fps 15`, `--frames 30`, `--no-display`.
 
-The window shows the live feed with face boxes, detection confidence, and five landmarks. Press **Q** to exit. The script always releases the camera.
+The window shows the live feed with **Track #N**, detection confidence, and five landmarks. Press **Q** to exit. The script always releases the camera.
 
 Camera-only (no YuNet):
 
@@ -200,6 +206,7 @@ CPU baseline (blank frames, no webcam):
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/benchmark_face_detection.py
+.\.venv\Scripts\python.exe scripts/benchmark_face_tracking.py
 ```
 
 Requested resolution/FPS are hints. The printed “actual” size is what the driver provided.
@@ -216,7 +223,7 @@ Requested resolution/FPS are hints. The printed “actual” size is what the dr
 
 `GET /api/system/status` `camera.available` means a camera is **registered** and not in an error state. It does not open the device. A real open happens only on `POST /api/cameras/{id}/start` or `scripts/test_webcam.py`.
 
-## Development flow (Phase 3)
+## Development flow (Phase 4)
 
 1. Create/activate `backend/.venv`
 2. `pip install -e ".[dev]"`
@@ -227,7 +234,7 @@ Requested resolution/FPS are hints. The printed “actual” size is what the dr
 7. `python -m app`
 8. Hit `/api/health`, `/api/system/status`, `/api/cameras`
 9. Optional: `.\.venv\Scripts\python.exe scripts/test_webcam.py`
-10. Optional: `.\.venv\Scripts\python.exe scripts/benchmark_face_detection.py`
+10. Optional: `.\.venv\Scripts\python.exe scripts/benchmark_face_tracking.py`
 
 ## Lint
 

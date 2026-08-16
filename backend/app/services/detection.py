@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.cameras.manager import CameraManager
-from app.schemas.detection import DetectionResponse, FaceDetectionDto
+from app.schemas.detection import DetectionResponse, FaceDetectionDto, FaceTrackDto
 from app.vision.runtime import DetectionRuntime
 from app.vision.types import DetectionSnapshot
 
@@ -38,6 +38,19 @@ def _to_response(
             )
             for face in snapshot.faces
         ],
+        tracks=[
+            FaceTrackDto(
+                track_id=track.track_id,
+                state=track.state,
+                confidence=track.confidence,
+                bounding_box=track.bounding_box,
+                landmarks=track.landmarks,
+                age_frames=track.age_frames,
+                missed_frames=track.missed_frames,
+            )
+            for track in snapshot.tracks
+        ],
         inference_ms=snapshot.inference_ms,
+        tracking_ms=snapshot.tracking_ms,
         error=snapshot.error,
     )

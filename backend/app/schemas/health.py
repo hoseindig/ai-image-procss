@@ -23,6 +23,7 @@ class FaceDetectionHealthStatus(BaseModel):
     model_loaded: bool
     provider: str | None = None
     last_inference_ms: float | None = None
+    tracking_enabled: bool
 
 
 class SystemStatusResponse(BaseModel):

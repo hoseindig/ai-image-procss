@@ -9,12 +9,15 @@ from app.vision.exceptions import (
     VisionError,
 )
 from app.vision.runtime import DetectionRuntime
+from app.vision.tracker import FaceTracker
 from app.vision.types import (
     BoundingBox,
     DetectionSnapshot,
     FaceDetection,
     FaceLandmarks,
+    FaceTrack,
     Point,
+    TrackState,
 )
 
 __all__ = [
@@ -24,10 +27,13 @@ __all__ = [
     "FaceDetection",
     "FaceDetector",
     "FaceLandmarks",
+    "FaceTrack",
+    "FaceTracker",
     "InferenceError",
     "InferenceProviderError",
     "ModelLoadError",
     "ModelNotFoundError",
     "Point",
+    "TrackState",
     "VisionError",
 ]

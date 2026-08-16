@@ -48,9 +48,9 @@ try:
     from app.core.config import load_settings
     from app.core.logging import setup_logging
     from app.vision.exceptions import ModelNotFoundError, VisionError
-    from app.vision.factory import create_face_detector
-    from app.vision.types import FaceDetection
-    from app.vision.visualize import draw_detections
+    from app.vision.factory import create_face_detector, create_face_tracker
+    from app.vision.types import FaceDetection, FaceTrack
+    from app.vision.visualize import draw_detections, draw_tracks
 except ModuleNotFoundError as exc:
     venv_python = _venv_python()
     print("Missing dependency while starting the webcam smoke test.", file=sys.stderr)
@@ -107,9 +107,10 @@ def main() -> int:
     captured = 0
     detected_frames = 0
     last_faces: list[FaceDetection] = []
+    last_tracks: list[FaceTrack] = []
     last_detect_at = 0.0
     interval_s = settings.face_detection_inference_interval_ms / 1000.0
-    started = time.perf_counter()
+    tracker = create_face_tracker(settings) if detector is not None else None
     try:
         source.open()
         status = source.get_status()
@@ -122,22 +123,31 @@ def main() -> int:
             print(
                 f"YuNet provider={detector.provider} "
                 f"input={detector.config.input_width}x{detector.config.input_height} "
-                f"interval_ms={settings.face_detection_inference_interval_ms}"
+                f"interval_ms={settings.face_detection_inference_interval_ms} "
+                f"tracking={tracker is not None}"
             )
         source.start()
         if display:
             import cv2
 
             cv2.namedWindow(window, cv2.WINDOW_NORMAL)
+        last_frame_at = None
+        started = time.perf_counter()
         while True:
             frame = source.read()
             if frame is None:
                 time.sleep(0.01)
                 continue
+            if last_frame_at is not None and frame.timestamp == last_frame_at:
+                time.sleep(0.01)
+                continue
+            last_frame_at = frame.timestamp
             captured += 1
             now = time.monotonic()
             if detector is not None and now - last_detect_at >= interval_s:
                 last_faces = detector.detect(frame)
+                if tracker is not None:
+                    last_tracks = tracker.update(last_faces)
                 last_detect_at = now
                 detected_frames += 1
             elapsed = max(time.perf_counter() - started, 1e-6)
@@ -145,10 +155,16 @@ def main() -> int:
             if display:
                 import cv2
 
-                image = (
-                    draw_detections(frame.data, last_faces) if detector is not None else frame.data
+                if detector is not None and tracker is not None:
+                    image = draw_tracks(frame.data, last_tracks)
+                elif detector is not None:
+                    image = draw_detections(frame.data, last_faces)
+                else:
+                    image = frame.data
+                overlay = (
+                    f"fps={fps:.1f} faces={len(last_faces)} "
+                    f"tracks={len(last_tracks)} {frame.width}x{frame.height}"
                 )
-                overlay = f"fps={fps:.1f} faces={len(last_faces)} {frame.width}x{frame.height}"
                 cv2.putText(
                     image,
                     overlay,
@@ -166,7 +182,8 @@ def main() -> int:
             elif captured % 10 == 0:
                 print(
                     f"frames={captured} fps={fps:.1f} size={frame.width}x{frame.height} "
-                    f"faces={len(last_faces)}"
+                    f"faces={len(last_faces)} tracks={len(last_tracks)} "
+                    f"ids={[track.track_id for track in last_tracks]}"
                 )
             if args.frames > 0 and captured >= args.frames:
                 break

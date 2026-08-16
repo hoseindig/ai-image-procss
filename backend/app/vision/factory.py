@@ -8,6 +8,8 @@ from app.core.config import PROJECT_ROOT, Settings
 from app.core.logging import get_logger
 from app.vision.engine import OnnxRuntimeEngine
 from app.vision.exceptions import ModelNotFoundError
+from app.vision.iou_tracker import IoUCentroidFaceTracker, TrackerConfig
+from app.vision.tracker import FaceTracker
 from app.vision.yunet import YuNetConfig, YuNetFaceDetector
 
 logger = get_logger("app.vision")
@@ -34,3 +36,16 @@ def create_face_detector(settings: Settings) -> YuNetFaceDetector:
         max_faces=settings.face_detection_max_faces,
     )
     return YuNetFaceDetector(engine, config)
+
+
+def create_face_tracker(settings: Settings) -> FaceTracker | None:
+    if not settings.face_tracking_enabled:
+        return None
+    config = TrackerConfig(
+        iou_threshold=settings.face_tracking_iou_threshold,
+        max_centroid_distance=settings.face_tracking_max_centroid_distance,
+        max_missed_frames=settings.face_tracking_max_missed_frames,
+        min_confirmed_frames=settings.face_tracking_min_confirmed_frames,
+        max_tracks=settings.face_tracking_max_tracks,
+    )
+    return IoUCentroidFaceTracker(config)

@@ -39,6 +39,12 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         "FACE_DETECTION_INPUT_HEIGHT",
         "FACE_DETECTION_MAX_FACES",
         "FACE_DETECTION_INFERENCE_INTERVAL_MS",
+        "FACE_TRACKING_ENABLED",
+        "FACE_TRACKING_IOU_THRESHOLD",
+        "FACE_TRACKING_MAX_CENTROID_DISTANCE",
+        "FACE_TRACKING_MAX_MISSED_FRAMES",
+        "FACE_TRACKING_MIN_CONFIRMED_FRAMES",
+        "FACE_TRACKING_MAX_TRACKS",
     ):
         monkeypatch.delenv(key, raising=False)
     database_path = tmp_path / "test.db"
