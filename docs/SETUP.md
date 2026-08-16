@@ -1,29 +1,42 @@
-# Setup (Phase 8)
+# Setup (Phase 9)
 
-Phase 8 runs the FastAPI backend with USB webcam capture, YuNet, tracking, quality/alignment, SFace embedding, person enrollment, gallery recognition, and **SQLite recognition audit events**. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the model files are installed.
+Phase 9 runs the FastAPI backend (USB webcam, YuNet, tracking, quality/alignment, SFace, enrollment, recognition, events, **MJPEG preview**) plus a Next.js frontend for testing.
 
-Automated tests **do not** need a physical webcam. A fake camera and a fake detector are used instead. Tests that need the real ONNX file are skipped if it is not present.
+Automated backend tests **do not** need a physical webcam. Frontend unit tests mock the API. Playwright smoke tests stub `/backend` responses and do not require a webcam.
 
-**Tested environment:** Windows 11, Python 3.13, Intel i7-13700H, CPU only.  
-**Also documented:** Ubuntu LTS (Linux) with the same Python/venv workflow — Linux hardware latency has not been measured in this repository.
-
-Automated tests **do not** need a physical webcam. Tests that need ONNX files skip if the models are absent.
-
-
+**Tested environment:** Windows 11, Python 3.13, Node.js v24.18.1, Intel i7-13700H, CPU only.  
+**Also documented:** Ubuntu LTS (Linux) with the same Python/venv and Node workflows — Linux webcam latency has not been re-measured for Phase 9 on Ubuntu.
 
 ## Prerequisites
 
-- Windows 11
-- Python **3.13** (`python --version` should print `3.13.x`)
-- Git (optional, for version control)
+### Windows 11
 
-Confirm Python:
+- Python **3.13**
+- Node.js **24+** (`node -v`)
+- Git (optional)
+- USB webcam for live camera UI (optional for automated tests)
 
 ```powershell
 python --version
+node -v
+npm -v
 ```
 
-## Virtual environment
+### Linux / Ubuntu LTS
+
+- Python **3.13**
+- Node.js **24+**
+- Build tools only if a wheel fails to install (rare for these pins)
+
+```bash
+python3.13 --version
+node -v
+npm -v
+```
+
+## Backend virtual environment
+
+### Windows PowerShell
 
 ```powershell
 cd backend
@@ -38,9 +51,18 @@ If PowerShell blocks activation:
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-## Install dependencies
+### Linux bash
 
-`pyproject.toml` is the source of truth. Install the package in editable mode with development extras (pytest, ruff, mypy):
+```bash
+cd backend
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+```
+
+## Install backend dependencies
+
+`pyproject.toml` is the source of truth:
 
 ```powershell
 pip install -e ".[dev]"
@@ -51,268 +73,180 @@ pip install -e ".[dev]"
 Copy the example file from the **project root**:
 
 ```powershell
+# Windows
 cd ..
 copy .env.example .env
+```
+
+```bash
+# Linux
+cd ..
+cp .env.example .env
 ```
 
 Settings are loaded from, in order of precedence:
 
 1. Process environment variables
-2. `backend/.env` if present
-3. Project-root `.env` if present
-4. Built-in development defaults
+2. `.env` in the project root
+3. `backend/.env`
 
-| Variable | Default | Purpose |
+Important variables:
+
+| Variable | Default | Notes |
 | --- | --- | --- |
-| `APP_NAME` | `Local Face Camera` | OpenAPI title / log identity |
-| `APP_ENV` | `development` | Environment name reported by `/api/system/status` |
-| `DEBUG` | `true` | Include exception `details` in 500 responses; uvicorn reload when using `python -m app` |
-| `HOST` | `127.0.0.1` | Bind address for `python -m app` |
-| `PORT` | `8000` | Bind port for `python -m app` |
-| `DATABASE_URL` | `sqlite:///./data/app.db` | SQLAlchemy URL. Relative SQLite paths resolve from the **project root**. |
-| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
-| `CORS_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Comma-separated browser origins. `*` is rejected. |
-| `CAMERA_DEFAULT_ID` | `default` | ID of the registered USB camera |
-| `CAMERA_DEFAULT_NAME` | `USB Webcam` | Display name |
-| `CAMERA_DEVICE_INDEX` | `0` | OpenCV device index (try `1` if `0` is the wrong device) |
-| `CAMERA_WIDTH` | `1280` | **Requested** frame width; not guaranteed |
-| `CAMERA_HEIGHT` | `720` | **Requested** frame height; not guaranteed |
-| `CAMERA_FPS` | `15` | **Requested** FPS; not guaranteed |
-| `CAMERA_BACKEND` | `dshow` | Windows: `dshow`, `msmf`, or `any` |
-| `FACE_DETECTION_ENABLED` | `true` | Load YuNet at startup when true |
-| `FACE_DETECTION_MODEL_PATH` | `models/face/yunet/2023mar.onnx` | Relative paths resolve from the **project root** |
-| `FACE_DETECTION_CONFIDENCE_THRESHOLD` | `0.7` | YuNet detection-score cutoff (not a probability) |
-| `FACE_DETECTION_NMS_THRESHOLD` | `0.3` | IoU NMS; OpenCV FaceDetectorYN default |
-| `FACE_DETECTION_INPUT_WIDTH` | `640` | Must match the 2023mar ONNX graph |
-| `FACE_DETECTION_INPUT_HEIGHT` | `640` | Must match the 2023mar ONNX graph |
-| `FACE_DETECTION_MAX_FACES` | `10` | After NMS |
-| `FACE_DETECTION_INFERENCE_INTERVAL_MS` | `100` | Detection worker period; camera FPS can be higher |
-| `FACE_TRACKING_ENABLED` | `true` | Associate detections across frames |
-| `FACE_TRACKING_IOU_THRESHOLD` | `0.3` | Minimum IoU for an IoU match |
-| `FACE_TRACKING_MAX_CENTROID_DISTANCE` | `100` | Pixel fallback when IoU is low |
-| `FACE_TRACKING_MAX_MISSED_FRAMES` | `5` | Consecutive misses a track can survive |
-| `FACE_TRACKING_MIN_CONFIRMED_FRAMES` | `2` | Hits before a track is `confirmed` |
-| `FACE_TRACKING_MAX_TRACKS` | `20` | Cap on simultaneous tracks |
-| `FACE_QUALITY_ENABLED` | `true` | Assess tracked faces for alignment suitability |
-| `FACE_QUALITY_MIN_FACE_WIDTH` | `80` | Reject smaller face boxes |
-| `FACE_QUALITY_MIN_FACE_HEIGHT` | `80` | Reject smaller face boxes |
-| `FACE_QUALITY_MIN_SHARPNESS` | `60` | Laplacian variance heuristic (not a blur probability) |
-| `FACE_QUALITY_MIN_BRIGHTNESS` | `40` | Mean gray lower bound (0–255) |
-| `FACE_QUALITY_MAX_BRIGHTNESS` | `220` | Mean gray upper bound (0–255) |
-| `FACE_ALIGNMENT_ENABLED` | `true` | Produce aligned crops for accepted faces |
-| `FACE_ALIGNMENT_WIDTH` | `112` | Aligned output width (SFace input) |
-| `FACE_ALIGNMENT_HEIGHT` | `112` | Aligned output height |
-| `FACE_EMBEDDING_ENABLED` | `true` | Load SFace and embed accepted aligned faces |
-| `FACE_EMBEDDING_MODEL_PATH` | `models/face/sface/2021dec.onnx` | Relative paths resolve from the **project root** |
-| `FACE_EMBEDDING_THREADS` | `2` | ONNX Runtime intra-op threads for SFace |
-| `FACE_RECOGNITION_ENABLED` | `true` | Compare embeddings to the active enrollment gallery |
-| `FACE_RECOGNITION_THRESHOLD` | `0.363` | Cosine match when similarity ≥ threshold (engineering default; see `docs/FACE_RECOGNITION.md`) |
-| `EVENT_LOGGING_ENABLED` | `true` | Persist recognized / unknown_face audit events |
-| `EVENT_RECOGNIZED_COOLDOWN_SECONDS` | `10` | Min seconds between events for same camera+person |
-| `EVENT_UNKNOWN_COOLDOWN_SECONDS` | `10` | Min seconds between events for same camera+track |
-| `EVENT_RETENTION_DAYS` | `90` | Future cleanup policy (not auto-enforced yet) |
-| `EVENT_API_DEFAULT_PAGE_SIZE` | `50` | Default `/api/events` page size |
-| `EVENT_API_MAX_PAGE_SIZE` | `200` | Max `/api/events` page size |
+| `HOST` / `PORT` | `127.0.0.1` / `8000` | Backend bind |
+| `CORS_ORIGINS` | localhost:3000 | Used if frontend calls `:8000` directly |
+| `CAMERA_*` | USB defaults | Device index / backend |
+| `FACE_RECOGNITION_*` | see `.env.example` | Do not change casually |
 
-Do not commit `.env`.
+Frontend env (separate file):
 
-## YuNet + SFace models
+```powershell
+cd frontend
+copy .env.example .env.local
+```
 
-The application will **not** download models. From the project root:
+```bash
+cd frontend
+cp .env.example .env.local
+```
 
-**Windows**
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_BASE_URL` | `/backend` | Same-origin proxy path |
+| `API_PROXY_TARGET` | `http://127.0.0.1:8000` | Next rewrite target (server-only) |
+
+## Models
+
+From the **project root** (once; needs internet):
 
 ```powershell
 python scripts/download_models.py
 ```
 
-**Linux (Ubuntu LTS)**
+See `docs/MODELS.md`.
 
-```bash
-python3 scripts/download_models.py
-```
+## Database
 
-Expected paths:
-
-- `models/face/yunet/2023mar.onnx`
-- `models/face/sface/2021dec.onnx`
-
-Checksums: `docs/MODELS.md`.
-
-## Database migrations
-
-From `backend/` with the virtualenv active:
+From `backend/` with venv active:
 
 ```powershell
 alembic upgrade head
 ```
 
-Revision `0003_events` creates the `events` audit table. See `docs/EVENTS.md` and `docs/PERSON_ENROLLMENT.md`.
+Creates `data/app.db` at the project root (configurable via `DATABASE_URL`).
 
-Useful commands:
-
-```powershell
-alembic current
-alembic downgrade 0002_person_enrollment
-alembic upgrade head
-alembic history
-```
-
-The SQLite parent directory (`data/`) is created automatically if it is missing.
-
-### SQLite backup
-
-Stop the app before a simple file copy, or use:
-
-```powershell
-sqlite3 data\app.db ".backup 'data\app-backup.db'"
-```
-
-Details: `docs/PERSON_ENROLLMENT.md` and `docs/EVENTS.md`.
-
-## Start the backend
-
-From `backend/`:
+## Running the backend
 
 ```powershell
 python -m app
 ```
 
-Equivalent:
+Or:
 
 ```powershell
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Check:
+Useful URLs:
+
+- http://127.0.0.1:8000/api/health
+- http://127.0.0.1:8000/api/system/status
+- http://127.0.0.1:8000/api/cameras
+- http://127.0.0.1:8000/api/cameras/default/preview (MJPEG; camera must be running)
+- http://127.0.0.1:8000/docs
+
+## Running the frontend
+
+With the backend already listening on `:8000`:
 
 ```powershell
-curl http://127.0.0.1:8000/api/health
-curl http://127.0.0.1:8000/api/system/status
+cd frontend
+npm install
+npm run dev
 ```
 
-On Windows PowerShell:
+Open http://127.0.0.1:3000
+
+Production build:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8000/api/health
-Invoke-RestMethod http://127.0.0.1:8000/api/system/status
+npm run build
+npm run start
 ```
 
-Interactive docs: http://127.0.0.1:8000/docs
+## Development workflow
 
-Latest detections for the default camera (empty until start):
+1. Start backend (`python -m app`)
+2. Start frontend (`npm run dev`)
+3. Open dashboard → verify health / system status
+4. Camera page → Start → confirm MJPEG
+5. People → create person
+6. Events → confirm list/pagination API
+7. Enrollment from camera pipeline remains a future UX; Phase 7A still accepts precomputed embeddings via the labeled developer panel
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/api/cameras/default/detections
-```
-
-## Tests
-
-From `backend/`:
+## Backend verification
 
 ```powershell
 pytest
-```
-
-Tests use a temporary SQLite file and a fake camera. They do not need a physical webcam, network, or `data/app.db`. Tests that exercise the real YuNet file skip if `models/face/yunet/2023mar.onnx` is absent.
-
-## USB webcam (manual)
-
-Select the device with `CAMERA_DEVICE_INDEX` (default `0`). This project does **not** scan many indexes.
-
-From `backend/` with the virtualenv active:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-python scripts/test_webcam.py
-```
-
-Without activating the venv:
-
-```powershell
-.\.venv\Scripts\python.exe scripts/test_webcam.py
-```
-
-Optional flags: `--index 1`, `--width 640`, `--height 480`, `--fps 15`, `--frames 30`, `--no-display`.
-
-The window shows the live feed with **Track #N**, quality OK/REJECTED when enabled, and five landmarks. Press **Q** to exit. The script always releases the camera.
-
-Camera-only (no YuNet):
-
-```powershell
-.\.venv\Scripts\python.exe scripts/test_webcam.py --no-detect
-```
-
-CPU baseline (blank/synthetic frames, no webcam):
-
-```powershell
-.\.venv\Scripts\python.exe scripts/benchmark_face_detection.py
-.\.venv\Scripts\python.exe scripts/benchmark_face_tracking.py
-.\.venv\Scripts\python.exe scripts/benchmark_face_quality.py
-.\.venv\Scripts\python.exe scripts/benchmark_face_embedding.py
-.\.venv\Scripts\python.exe scripts/benchmark_face_recognition.py
-```
-
-SFace overlay (metadata only, no raw vector):
-
-```powershell
-.\.venv\Scripts\python.exe scripts/test_webcam.py --show-embedding
-```
-
-Recognition overlay (enroll first; similarity is not a percentage):
-
-```powershell
-.\.venv\Scripts\python.exe scripts/test_webcam.py --show-recognition --log-quality
-```
-
-Requested resolution/FPS are hints. The printed “actual” size is what the driver provided.
-
-### Windows camera problems
-
-- Close the Windows Camera app, Teams, Zoom, or any other program using the webcam. DirectShow usually allows only one opener.
-- If index `0` is a virtual camera (IR, OBS), try `--index 1`.
-- If `dshow` fails, set `CAMERA_BACKEND=msmf` and retry.
-- Privacy: Windows Settings → Privacy & security → Camera → allow desktop apps.
-- After a crash, unplug/replug the USB camera if the handle looks stuck.
-
-### How availability is determined
-
-`GET /api/system/status` `camera.available` means a camera is **registered** and not in an error state. It does not open the device. A real open happens only on `POST /api/cameras/{id}/start` or `scripts/test_webcam.py`.
-
-## Development flow (Phase 8)
-
-1. Create/activate `backend/.venv` (Windows PowerShell or Linux bash)
-2. `pip install -e ".[dev]"`
-3. Copy `.env.example` to `.env`
-4. From the project root: `python scripts/download_models.py`
-5. `alembic upgrade head` (persons, enrollments, events)
-6. `pytest`, `ruff check .`, `ruff format --check .`, `mypy .`
-7. `python -m app`
-8. Enroll a person (`docs/PERSON_ENROLLMENT.md`)
-9. Optional: `scripts/test_webcam.py --show-recognition --log-events`
-10. Optional: `scripts/benchmark_events.py`
-11. Optional: `GET /api/events`
-
-
-## Lint
-
-```powershell
 ruff check .
 ruff format --check .
-```
-
-Apply formatting:
-
-```powershell
-ruff format .
-```
-
-## Type checking
-
-```powershell
 mypy .
 ```
 
+## Frontend verification
+
+```powershell
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+Optional E2E (install Chromium once; requires network access to Playwright CDN):
+
+```powershell
+npm run test:e2e:install
+npm run test:e2e
+```
+
+If Chromium download fails (timeouts/firewall), E2E is **documented but not runnable** until `npx playwright install chromium` succeeds. Unit/component tests do not need Playwright browsers.
+
+## USB webcam smoke test (backend script)
+
+From `backend/` (physical webcam; not part of pytest):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/test_webcam.py --show-recognition --log-events --log-quality
+```
+
+### Windows camera problems
+
+- Close apps that hold the webcam exclusively.
+- Try another `CAMERA_DEVICE_INDEX` if index `0` is a virtual device.
+- Try `CAMERA_BACKEND=msmf` if `dshow` fails.
+- Privacy: Windows Settings → Privacy & security → Camera → allow desktop apps.
+
+### Linux camera notes
+
+- Ensure the user can read `/dev/video*`.
+- Prefer `CAMERA_BACKEND=any` if the default fails.
+- Linux webcam + frontend MJPEG was **documented**, not hardware-revalidated in Phase 9 on Ubuntu.
+
+## How availability is determined
+
+`GET /api/system/status` `camera.available` means a camera is **registered** and not in an error state. A real open happens on `POST /api/cameras/{id}/start` or `scripts/test_webcam.py`.
+
 ## Offline use
 
-After `pip install` and `python scripts/download_models.py`, the backend does not call the network. Face detection does not upload frames.
+After Python install, model download, and `npm install`, runtime AI does not call the network. Keep Node registries available only for installing packages.
+
+## Common errors
+
+| Symptom | Likely cause |
+| --- | --- |
+| Frontend network_error | Backend not running or wrong `API_PROXY_TARGET` |
+| Preview blank / stopped | Camera not started |
+| `409 camera_invalid_state` on preview | Start the camera first |
+| CORS errors | Prefer `/backend` proxy, or add origin to `CORS_ORIGINS` |
+| Enrollment 422 | Embedding must be exactly 128 floats; quality.accepted must be true |

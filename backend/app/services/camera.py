@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
+from app.cameras.exceptions import CameraInvalidStateError
 from app.cameras.manager import CameraManager
-from app.cameras.types import CameraStatus
+from app.cameras.mjpeg import iter_mjpeg
+from app.cameras.source import CameraSource
+from app.cameras.types import CameraState, CameraStatus
 from app.vision.runtime import DetectionRuntime
 
 
@@ -27,3 +32,16 @@ class CameraService:
         self._detection.detach(camera_id)
         self._manager.stop(camera_id)
         return self._manager.close(camera_id)
+
+    def get_source(self, camera_id: str) -> CameraSource:
+        return self._manager.get_source(camera_id)
+
+    def iter_preview(self, camera_id: str, *, fps: float = 10.0) -> Iterator[bytes]:
+        """Stream MJPEG from a running camera. Raises if the camera is not running."""
+        source = self._manager.get_source(camera_id)
+        status = source.get_status()
+        if status.state is not CameraState.RUNNING:
+            raise CameraInvalidStateError(
+                f"Camera '{camera_id}' must be running before preview (state={status.state})"
+            )
+        return iter_mjpeg(source, fps=fps)

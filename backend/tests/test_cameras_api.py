@@ -76,3 +76,29 @@ def test_detections_when_disabled(camera_client: TestClient) -> None:
     body = response.json()
     assert body["enabled"] is False
     assert body["faces"] == []
+
+
+def test_preview_requires_running(camera_client: TestClient) -> None:
+    response = camera_client.get("/api/cameras/default/preview")
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "camera_invalid_state"
+
+
+def test_preview_mjpeg_headers(camera_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert camera_client.post("/api/cameras/default/start").status_code == 200
+    # Bounded stream for TestClient: unbounded MJPEG would hang the transport.
+    from app.cameras.mjpeg import iter_mjpeg as original_iter
+    from app.services import camera as camera_service_module
+
+    def bounded(source: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        kwargs = dict(kwargs)
+        kwargs["max_frames"] = 2
+        return original_iter(source, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(camera_service_module, "iter_mjpeg", bounded)
+    response = camera_client.get("/api/cameras/default/preview")
+    assert response.status_code == 200
+    assert "multipart/x-mixed-replace" in response.headers["content-type"]
+    assert b"--frame" in response.content
+    assert b"image/jpeg" in response.content
+    camera_client.post("/api/cameras/default/stop")

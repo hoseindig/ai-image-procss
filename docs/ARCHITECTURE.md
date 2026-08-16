@@ -1,6 +1,6 @@
-# Architecture (Phase 8)
+# Architecture (Phase 9)
 
-Phase 8 adds SQLite **recognition audit events** with cooldown deduplication. No video, snapshots, or frontend.
+Phase 9 adds a Next.js frontend that consumes the existing FastAPI face pipeline. Recognition behavior, thresholds, and cooldown defaults are unchanged.
 
 ## Runtime
 
@@ -10,6 +10,14 @@ USB Webcam
     → YuNet → Tracker → Quality → Align → SFace → Recognition
     → EventService (cooldown)
     → SQLite events
+
+Live frames also feed:
+    → MJPEG /api/cameras/{id}/preview
+    → Browser <img> (no getUserMedia for the main pipeline)
+
+REST metadata:
+    → Next.js /backend rewrite → FastAPI
+    → TanStack Query → UI pages
 ```
 
 ## Persistence
@@ -19,18 +27,27 @@ USB Webcam
 | `persons` / `enrollment_samples` | Gallery (Phase 7A) |
 | `events` | recognized / unknown_face audit rows (Phase 8) |
 
-## API
+No embeddings, snapshots, or video are stored by the frontend.
+
+## API (selected)
 
 | Method | Path | Role |
 | --- | --- | --- |
-| GET | `/api/cameras/{id}/detections` | live tracks + recognition metadata |
-| GET | `/api/events` | paginated filtered event history |
-| GET | `/api/events/{id}` | one event |
-| * | `/api/persons…` | enrollment gallery |
+| GET | `/api/health` | liveness |
+| GET | `/api/system/status` | DB / camera / pipeline flags |
+| GET/POST | `/api/cameras…` | lifecycle + detections |
+| GET | `/api/cameras/{id}/preview` | MJPEG stream |
+| * | `/api/persons…` | gallery |
+| GET | `/api/events` | paginated filtered history |
+
+## Frontend
+
+See `docs/FRONTEND.md` for stack, RTL, proxy, and enrollment developer UI.
 
 ## Docs
 
-- `docs/EVENTS.md` — cooldown, schema, privacy, backup
+- `docs/FRONTEND.md` — UI foundation
+- `docs/EVENTS.md` — cooldown, schema, privacy
 - `docs/FACE_RECOGNITION.md` — matching
 - `docs/PERSON_ENROLLMENT.md` — gallery
 - `docs/MODELS.md` — model licenses

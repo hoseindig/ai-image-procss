@@ -1,0 +1,16 @@
+{
+  "name": "local-face-camera",
+  "private": true,
+  "description": "Convenience scripts for the monorepo. Backend remains Python; frontend is Next.js.",
+  "scripts": {
+    "frontend:install": "npm --prefix frontend install",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:lint": "npm --prefix frontend run lint",
+    "frontend:typecheck": "npm --prefix frontend run typecheck",
+    "frontend:test": "npm --prefix frontend run test"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -5,8 +5,10 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 
 from app.api.deps import CameraManagerDep, DetectionRuntimeDep
+from app.cameras.mjpeg import CONTENT_TYPE
 from app.cameras.types import CameraStatus
 from app.schemas.camera import CameraListResponse
 from app.schemas.detection import DetectionResponse
@@ -57,3 +59,18 @@ def stop_camera(camera_id: str, service: CameraServiceDep) -> CameraStatus:
 @router.get("/{camera_id}/detections")
 def get_detections(camera_id: str, service: DetectionServiceDep) -> DetectionResponse:
     return service.get_detections(camera_id)
+
+
+@router.get("/{camera_id}/preview")
+def preview_camera(camera_id: str, service: CameraServiceDep) -> StreamingResponse:
+    """Live MJPEG preview. Requires the camera to be running. No AI overlays."""
+    stream = service.iter_preview(camera_id)
+    return StreamingResponse(
+        stream,
+        media_type=CONTENT_TYPE,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Connection": "close",
+        },
+    )
