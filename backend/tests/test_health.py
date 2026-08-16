@@ -1,0 +1,25 @@
+from __future__ import annotations
+
+from fastapi.testclient import TestClient
+
+
+def test_health_returns_ok(client: TestClient) -> None:
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_system_status_returns_ok(client: TestClient) -> None:
+    response = client.get("/api/system/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["environment"] == "test"
+    assert body["database"]["connected"] is True
+    assert isinstance(body["python_version"], str)
+    assert body["python_version"].startswith("3.13")
+    assert body["uptime_seconds"] >= 0
+    assert body["camera"]["available"] is True
+    assert body["camera"]["running"] is False
+    assert "database_url" not in body
+    assert "DATABASE_URL" not in response.text
