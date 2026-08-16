@@ -6,13 +6,24 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.vision.types import BoundingBox, FaceLandmarks, TrackState
+from app.vision.types import BoundingBox, FaceLandmarks, QualityRejectionReason, TrackState
 
 
 class FaceDetectionDto(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     bounding_box: BoundingBox
     landmarks: FaceLandmarks
+
+
+class FaceQualityDto(BaseModel):
+    accepted: bool
+    reasons: list[QualityRejectionReason] = Field(default_factory=list)
+    face_width: float = Field(ge=0.0)
+    face_height: float = Field(ge=0.0)
+    sharpness: float | None = None
+    brightness: float | None = None
+    landmarks_valid: bool
+    aligned: bool = False
 
 
 class FaceTrackDto(BaseModel):
@@ -23,6 +34,7 @@ class FaceTrackDto(BaseModel):
     landmarks: FaceLandmarks
     age_frames: int = Field(ge=1)
     missed_frames: int = Field(ge=0)
+    quality: FaceQualityDto | None = None
 
 
 class DetectionResponse(BaseModel):
@@ -33,4 +45,7 @@ class DetectionResponse(BaseModel):
     tracks: list[FaceTrackDto] = Field(default_factory=list)
     inference_ms: float | None = None
     tracking_ms: float | None = None
+    quality_ms: float | None = None
+    alignment_ms: float | None = None
+    aligned_count: int = Field(default=0, ge=0)
     error: str | None = None

@@ -1,6 +1,6 @@
-# Architecture (Phase 4)
+# Architecture (Phase 5)
 
-Phase 4 adds lightweight face tracking on top of YuNet detection. Recognition, events, and the frontend are still absent.
+Phase 5 adds face quality assessment and five-point alignment on top of tracking. Recognition, events, and the frontend are still absent.
 
 ## Runtime (current)
 
@@ -16,37 +16,44 @@ USB Webcam
     → FaceTracker
           └── IoUCentroidFaceTracker
     → FaceTrack[]
-    → visualization (preview only; not part of detector or tracker)
-    → REST (camera status + latest detections/tracks)
+    → FaceQualityAssessor
+          └── HeuristicFaceQualityAssessor
+    → FaceQuality[]  (accepted / reasons / metrics)
+    → FaceAligner
+          └── LandmarkFaceAligner
+    → AlignedFace[]  (112×112 default crop; size-1 slot, not queued)
+    → visualization (preview only)
+    → REST (detections / tracks / quality metadata)
 ```
 
-`FaceDetector` does not know about tracking. `FaceTracker` does not know about YuNet or ONNX Runtime.
+`FaceDetector` does not know about tracking, quality, or alignment. Quality and alignment do not know about YuNet or future SFace inference.
 
-## FaceTracker
+## Protocols
 
 ```text
 FaceTracker.update(detections) → list[FaceTrack]
+FaceQualityAssessor.assess(frame, track) → FaceQuality
+FaceAligner.align(frame, track) → AlignedFace
 ```
 
-`FaceTrack` contains:
+Future embedding should consume `AlignedFace` without rewriting these stages:
 
-- `track_id` (process-local integer; **not** a person ID)
-- `bounding_box` / `landmarks` / `confidence` in the original frame
-- `age_frames`, `missed_frames`
-- `state`: `tentative` | `confirmed` | `lost`
-
-Association is greedy IoU-first with centroid-distance fallback. See `docs/TRACKING.md`.
+```text
+AlignedFace → FaceEmbedder → Embedding
+```
 
 ## Latest-frame scheduling
 
-Unchanged from Phase 3:
+Unchanged size-1 slots:
 
 ```text
-Camera thread  → LatestFrameSlot (size 1)
-Detection thread → detect → track → LatestValueSlot[DetectionSnapshot] (size 1)
+Camera thread     → LatestFrameSlot (size 1)
+Detection thread  → detect → track → quality → align
+                  → LatestValueSlot[DetectionSnapshot] (size 1)
+                  → LatestValueSlot[AlignedFace…] (size 1)
 ```
 
-No frame queue. Tracking runs on the same worker thread as detection. Shutdown stops the worker (and tracker), then the camera.
+No frame queue. Quality and alignment run on the same worker thread as detection.
 
 ## Layout
 
@@ -54,11 +61,12 @@ No frame queue. Tracking runs on the same worker thread as detection. Shutdown s
 backend/
   app/
     cameras/
-    vision/              # detector, YuNet, tracker, worker
+    vision/              # detector, tracker, quality, align, worker
     services/detection.py
   scripts/test_webcam.py
   scripts/benchmark_face_detection.py
   scripts/benchmark_face_tracking.py
+  scripts/benchmark_face_quality.py
 ```
 
 ## API
@@ -66,11 +74,11 @@ backend/
 | Method | Path | Role |
 | --- | --- | --- |
 | GET | `/api/health` | Liveness |
-| GET | `/api/system/status` | Adds `face_detection.tracking_enabled` |
+| GET | `/api/system/status` | Adds `quality_enabled` / `alignment_enabled` |
 | GET | `/api/cameras` | Registered cameras |
 | GET | `/api/cameras/{id}` | One camera |
-| POST | `/api/cameras/{id}/start` | Open + capture + attach detection/tracking worker |
+| POST | `/api/cameras/{id}/start` | Open + capture + attach worker |
 | POST | `/api/cameras/{id}/stop` | Detach worker + stop + release |
-| GET | `/api/cameras/{id}/detections` | Latest `faces` (raw detections) and `tracks` |
+| GET | `/api/cameras/{id}/detections` | `faces`, `tracks` (+ optional `quality`), timings |
 
-Raw `faces` remain Phase 3 detections. `tracks` add `track_id` and `state`.
+Aligned pixel buffers are not returned over REST. See `docs/FACE_QUALITY.md` and `docs/TRACKING.md`.

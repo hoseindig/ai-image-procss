@@ -1,4 +1,4 @@
-"""Construct the process FaceDetector from settings. No runtime model download."""
+"""Construct vision components from settings. No runtime model download."""
 
 from __future__ import annotations
 
@@ -6,9 +6,11 @@ from pathlib import Path
 
 from app.core.config import PROJECT_ROOT, Settings
 from app.core.logging import get_logger
+from app.vision.align import AlignConfig, FaceAligner, LandmarkFaceAligner
 from app.vision.engine import OnnxRuntimeEngine
 from app.vision.exceptions import ModelNotFoundError
 from app.vision.iou_tracker import IoUCentroidFaceTracker, TrackerConfig
+from app.vision.quality import FaceQualityAssessor, HeuristicFaceQualityAssessor, QualityConfig
 from app.vision.tracker import FaceTracker
 from app.vision.yunet import YuNetConfig, YuNetFaceDetector
 
@@ -49,3 +51,26 @@ def create_face_tracker(settings: Settings) -> FaceTracker | None:
         max_tracks=settings.face_tracking_max_tracks,
     )
     return IoUCentroidFaceTracker(config)
+
+
+def create_face_quality_assessor(settings: Settings) -> FaceQualityAssessor | None:
+    if not settings.face_quality_enabled:
+        return None
+    config = QualityConfig(
+        min_face_width=settings.face_quality_min_face_width,
+        min_face_height=settings.face_quality_min_face_height,
+        min_sharpness=settings.face_quality_min_sharpness,
+        min_brightness=settings.face_quality_min_brightness,
+        max_brightness=settings.face_quality_max_brightness,
+    )
+    return HeuristicFaceQualityAssessor(config)
+
+
+def create_face_aligner(settings: Settings) -> FaceAligner | None:
+    if not settings.face_alignment_enabled:
+        return None
+    config = AlignConfig(
+        output_width=settings.face_alignment_width,
+        output_height=settings.face_alignment_height,
+    )
+    return LandmarkFaceAligner(config)

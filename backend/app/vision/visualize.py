@@ -1,6 +1,7 @@
 """Draw face detections and tracks onto a BGR image.
 
-Kept separate from FaceDetector and FaceTracker. This module only renders.
+Kept separate from FaceDetector, FaceTracker, quality, and alignment.
+This module only renders.
 """
 
 from __future__ import annotations
@@ -8,7 +9,14 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 
-from app.vision.types import BoundingBox, FaceDetection, FaceLandmarks, FaceTrack, TrackState
+from app.vision.types import (
+    BoundingBox,
+    FaceDetection,
+    FaceLandmarks,
+    FaceQuality,
+    FaceTrack,
+    TrackState,
+)
 
 
 def draw_detections(
@@ -31,12 +39,21 @@ def draw_detections(
 def draw_tracks(
     image: NDArray[np.uint8],
     tracks: list[FaceTrack],
+    qualities: list[FaceQuality] | None = None,
 ) -> NDArray[np.uint8]:
-    """Return a copy of `image` with track IDs, boxes, and landmarks."""
+    """Return a copy of `image` with track IDs, optional quality, boxes, landmarks."""
     output = np.ascontiguousarray(image.copy())
+    quality_by_id = {item.track_id: item for item in qualities or []}
     for track in tracks:
         color = _track_color(track.state)
         label = f"Track #{track.track_id} {track.confidence:.2f}"
+        quality = quality_by_id.get(track.track_id)
+        if quality is not None:
+            if quality.accepted:
+                label = f"Track #{track.track_id} Quality: OK"
+            else:
+                reason = quality.reasons[0].value if quality.reasons else "rejected"
+                label = f"Track #{track.track_id} REJECTED {reason}"
         _draw_box(output, track.bounding_box, track.landmarks, label, color)
     return output
 

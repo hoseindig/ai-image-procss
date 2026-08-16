@@ -96,6 +96,18 @@ class Settings(BaseSettings):
     face_tracking_max_missed_frames: int = Field(default=5, ge=0)
     face_tracking_min_confirmed_frames: int = Field(default=2, ge=1)
     face_tracking_max_tracks: int = Field(default=20, ge=1)
+    face_quality_enabled: bool = Field(default=True)
+    face_quality_min_face_width: float = Field(default=80.0, gt=0.0)
+    face_quality_min_face_height: float = Field(default=80.0, gt=0.0)
+    # Laplacian variance on the face crop. Tunable heuristic, not a blur probability.
+    face_quality_min_sharpness: float = Field(default=60.0, ge=0.0)
+    # Mean grayscale brightness in [0, 255]. Tunable heuristics.
+    face_quality_min_brightness: float = Field(default=40.0, ge=0.0, le=255.0)
+    face_quality_max_brightness: float = Field(default=220.0, ge=0.0, le=255.0)
+    face_alignment_enabled: bool = Field(default=True)
+    # Default 112×112 matches the planned SFace input; kept configurable.
+    face_alignment_width: int = Field(default=112, ge=16)
+    face_alignment_height: int = Field(default=112, ge=16)
 
     @field_validator("app_env", mode="before")
     @classmethod
@@ -148,6 +160,12 @@ class Settings(BaseSettings):
     def reject_wildcard_cors(self) -> Self:
         if any(origin.strip() == "*" for origin in self.cors_origins):
             raise ValueError("CORS_ORIGINS cannot include '*' (wildcard origins are not allowed)")
+        return self
+
+    @model_validator(mode="after")
+    def validate_brightness_range(self) -> Self:
+        if self.face_quality_min_brightness > self.face_quality_max_brightness:
+            raise ValueError("FACE_QUALITY_MIN_BRIGHTNESS must be <= FACE_QUALITY_MAX_BRIGHTNESS")
         return self
 
 

@@ -1,8 +1,9 @@
-# Setup (Phase 4)
+# Setup (Phase 5)
 
-Phase 4 runs the FastAPI backend with USB webcam capture, local YuNet face detection, and IoU/centroid tracking. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the YuNet file are installed.
+Phase 5 runs the FastAPI backend with USB webcam capture, local YuNet face detection, IoU/centroid tracking, face quality gates, and five-point alignment. It does not require Node.js, Redis, PostgreSQL, Docker, or internet after Python packages and the YuNet file are installed.
 
 Automated tests **do not** need a physical webcam. A fake camera and a fake detector are used instead. Tests that need the real ONNX file are skipped if it is not present.
+
 
 ## Prerequisites
 
@@ -86,6 +87,15 @@ Settings are loaded from, in order of precedence:
 | `FACE_TRACKING_MAX_MISSED_FRAMES` | `5` | Consecutive misses a track can survive |
 | `FACE_TRACKING_MIN_CONFIRMED_FRAMES` | `2` | Hits before a track is `confirmed` |
 | `FACE_TRACKING_MAX_TRACKS` | `20` | Cap on simultaneous tracks |
+| `FACE_QUALITY_ENABLED` | `true` | Assess tracked faces for alignment suitability |
+| `FACE_QUALITY_MIN_FACE_WIDTH` | `80` | Reject smaller face boxes |
+| `FACE_QUALITY_MIN_FACE_HEIGHT` | `80` | Reject smaller face boxes |
+| `FACE_QUALITY_MIN_SHARPNESS` | `60` | Laplacian variance heuristic (not a blur probability) |
+| `FACE_QUALITY_MIN_BRIGHTNESS` | `40` | Mean gray lower bound (0–255) |
+| `FACE_QUALITY_MAX_BRIGHTNESS` | `220` | Mean gray upper bound (0–255) |
+| `FACE_ALIGNMENT_ENABLED` | `true` | Produce aligned crops for accepted faces |
+| `FACE_ALIGNMENT_WIDTH` | `112` | Aligned output width (SFace-compatible default) |
+| `FACE_ALIGNMENT_HEIGHT` | `112` | Aligned output height |
 
 Do not commit `.env`.
 
@@ -194,7 +204,7 @@ Without activating the venv:
 
 Optional flags: `--index 1`, `--width 640`, `--height 480`, `--fps 15`, `--frames 30`, `--no-display`.
 
-The window shows the live feed with **Track #N**, detection confidence, and five landmarks. Press **Q** to exit. The script always releases the camera.
+The window shows the live feed with **Track #N**, quality OK/REJECTED when enabled, and five landmarks. Press **Q** to exit. The script always releases the camera.
 
 Camera-only (no YuNet):
 
@@ -202,11 +212,12 @@ Camera-only (no YuNet):
 .\.venv\Scripts\python.exe scripts/test_webcam.py --no-detect
 ```
 
-CPU baseline (blank frames, no webcam):
+CPU baseline (blank/synthetic frames, no webcam):
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/benchmark_face_detection.py
 .\.venv\Scripts\python.exe scripts/benchmark_face_tracking.py
+.\.venv\Scripts\python.exe scripts/benchmark_face_quality.py
 ```
 
 Requested resolution/FPS are hints. The printed “actual” size is what the driver provided.
@@ -223,7 +234,7 @@ Requested resolution/FPS are hints. The printed “actual” size is what the dr
 
 `GET /api/system/status` `camera.available` means a camera is **registered** and not in an error state. It does not open the device. A real open happens only on `POST /api/cameras/{id}/start` or `scripts/test_webcam.py`.
 
-## Development flow (Phase 4)
+## Development flow (Phase 5)
 
 1. Create/activate `backend/.venv`
 2. `pip install -e ".[dev]"`
@@ -234,7 +245,7 @@ Requested resolution/FPS are hints. The printed “actual” size is what the dr
 7. `python -m app`
 8. Hit `/api/health`, `/api/system/status`, `/api/cameras`
 9. Optional: `.\.venv\Scripts\python.exe scripts/test_webcam.py`
-10. Optional: `.\.venv\Scripts\python.exe scripts/benchmark_face_tracking.py`
+10. Optional: `.\.venv\Scripts\python.exe scripts/benchmark_face_quality.py`
 
 ## Lint
 

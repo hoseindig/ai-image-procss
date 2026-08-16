@@ -45,6 +45,15 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
         "FACE_TRACKING_MAX_MISSED_FRAMES",
         "FACE_TRACKING_MIN_CONFIRMED_FRAMES",
         "FACE_TRACKING_MAX_TRACKS",
+        "FACE_QUALITY_ENABLED",
+        "FACE_QUALITY_MIN_FACE_WIDTH",
+        "FACE_QUALITY_MIN_FACE_HEIGHT",
+        "FACE_QUALITY_MIN_SHARPNESS",
+        "FACE_QUALITY_MIN_BRIGHTNESS",
+        "FACE_QUALITY_MAX_BRIGHTNESS",
+        "FACE_ALIGNMENT_ENABLED",
+        "FACE_ALIGNMENT_WIDTH",
+        "FACE_ALIGNMENT_HEIGHT",
     ):
         monkeypatch.delenv(key, raising=False)
     database_path = tmp_path / "test.db"

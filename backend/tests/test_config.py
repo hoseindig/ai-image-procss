@@ -66,6 +66,15 @@ def test_face_detection_defaults() -> None:
     assert settings.face_tracking_max_missed_frames == 5
     assert settings.face_tracking_min_confirmed_frames == 2
     assert settings.face_tracking_max_tracks == 20
+    assert settings.face_quality_enabled is True
+    assert settings.face_quality_min_face_width == 80.0
+    assert settings.face_quality_min_face_height == 80.0
+    assert settings.face_quality_min_sharpness == 60.0
+    assert settings.face_quality_min_brightness == 40.0
+    assert settings.face_quality_max_brightness == 220.0
+    assert settings.face_alignment_enabled is True
+    assert settings.face_alignment_width == 112
+    assert settings.face_alignment_height == 112
 
 
 def test_invalid_confidence_threshold_is_rejected() -> None:
@@ -76,3 +85,11 @@ def test_invalid_confidence_threshold_is_rejected() -> None:
 def test_invalid_tracking_iou_is_rejected() -> None:
     with pytest.raises(ValidationError):
         IsolatedSettings(face_tracking_iou_threshold=1.5)
+
+
+def test_invalid_brightness_range_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        IsolatedSettings(
+            face_quality_min_brightness=200.0,
+            face_quality_max_brightness=100.0,
+        )

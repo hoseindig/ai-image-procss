@@ -9,8 +9,13 @@ from app.cameras.source import CameraSource
 from app.cameras.types import Frame
 from app.core.config import Settings
 from app.core.logging import get_logger
+from app.vision.align import AlignedFace
 from app.vision.detector import FaceDetector
-from app.vision.factory import create_face_tracker
+from app.vision.factory import (
+    create_face_aligner,
+    create_face_quality_assessor,
+    create_face_tracker,
+)
 from app.vision.types import DetectionSnapshot
 from app.vision.worker import DetectionWorker, FrameGetter
 
@@ -51,6 +56,14 @@ class DetectionRuntime:
     def tracking_enabled(self) -> bool:
         return self._settings.face_tracking_enabled
 
+    @property
+    def quality_enabled(self) -> bool:
+        return self._settings.face_quality_enabled
+
+    @property
+    def alignment_enabled(self) -> bool:
+        return self._settings.face_alignment_enabled
+
     def attach(self, camera_id: str) -> None:
         if not self.enabled or self._detector is None:
             return
@@ -67,6 +80,8 @@ class DetectionRuntime:
                 self._detector,
                 interval_ms=self._settings.face_detection_inference_interval_ms,
                 tracker=create_face_tracker(self._settings),
+                quality_assessor=create_face_quality_assessor(self._settings),
+                aligner=create_face_aligner(self._settings),
             )
             self._workers[camera_id] = worker
         worker.start()
@@ -83,6 +98,13 @@ class DetectionRuntime:
         if worker is None:
             return None
         return worker.latest()
+
+    def latest_aligned(self, camera_id: str) -> tuple[AlignedFace, ...]:
+        with self._lock:
+            worker = self._workers.get(camera_id)
+        if worker is None:
+            return ()
+        return worker.latest_aligned()
 
     def last_inference_ms(self) -> float | None:
         with self._lock:

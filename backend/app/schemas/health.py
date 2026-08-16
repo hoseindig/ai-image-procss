@@ -24,6 +24,8 @@ class FaceDetectionHealthStatus(BaseModel):
     provider: str | None = None
     last_inference_ms: float | None = None
     tracking_enabled: bool
+    quality_enabled: bool = False
+    alignment_enabled: bool = False
 
 
 class SystemStatusResponse(BaseModel):

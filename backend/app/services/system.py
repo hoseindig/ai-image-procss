@@ -56,6 +56,8 @@ class SystemStatusService:
                 provider=detection_runtime.provider,
                 last_inference_ms=detection_runtime.last_inference_ms(),
                 tracking_enabled=detection_runtime.tracking_enabled,
+                quality_enabled=detection_runtime.quality_enabled,
+                alignment_enabled=detection_runtime.alignment_enabled,
             ),
         )
 

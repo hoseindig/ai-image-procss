@@ -64,6 +64,30 @@ class FaceTrack(BaseModel):
     state: TrackState
 
 
+class QualityRejectionReason(StrEnum):
+    """Structured rejection reasons. Engineering heuristics, not biometric scores."""
+
+    FACE_TOO_SMALL = "face_too_small"
+    TOO_BLURRY = "too_blurry"
+    TOO_DARK = "too_dark"
+    TOO_BRIGHT = "too_bright"
+    INVALID_LANDMARKS = "invalid_landmarks"
+    INVALID_CROP = "invalid_crop"
+
+
+class FaceQuality(BaseModel):
+    """Per-track quality assessment. `accepted` is a gate, not a probability."""
+
+    track_id: int = Field(ge=1)
+    accepted: bool
+    reasons: list[QualityRejectionReason] = Field(default_factory=list)
+    face_width: float = Field(ge=0.0)
+    face_height: float = Field(ge=0.0)
+    sharpness: float | None = None
+    brightness: float | None = None
+    landmarks_valid: bool
+
+
 class DetectionSnapshot(BaseModel):
     """Latest completed detection for a camera. Replaced as a whole; never queued."""
 
@@ -71,6 +95,11 @@ class DetectionSnapshot(BaseModel):
     timestamp: datetime | None = None
     faces: list[FaceDetection] = Field(default_factory=list)
     tracks: list[FaceTrack] = Field(default_factory=list)
+    qualities: list[FaceQuality] = Field(default_factory=list)
     inference_ms: float | None = None
     tracking_ms: float | None = None
+    quality_ms: float | None = None
+    alignment_ms: float | None = None
+    aligned_count: int = Field(default=0, ge=0)
+    aligned_track_ids: list[int] = Field(default_factory=list)
     error: str | None = None

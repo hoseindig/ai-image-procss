@@ -48,8 +48,13 @@ try:
     from app.core.config import load_settings
     from app.core.logging import setup_logging
     from app.vision.exceptions import ModelNotFoundError, VisionError
-    from app.vision.factory import create_face_detector, create_face_tracker
-    from app.vision.types import FaceDetection, FaceTrack
+    from app.vision.factory import (
+        create_face_aligner,
+        create_face_detector,
+        create_face_quality_assessor,
+        create_face_tracker,
+    )
+    from app.vision.types import FaceDetection, FaceQuality, FaceTrack
     from app.vision.visualize import draw_detections, draw_tracks
 except ModuleNotFoundError as exc:
     venv_python = _venv_python()
@@ -108,9 +113,13 @@ def main() -> int:
     detected_frames = 0
     last_faces: list[FaceDetection] = []
     last_tracks: list[FaceTrack] = []
+    last_qualities: list[FaceQuality] = []
+    last_aligned = 0
     last_detect_at = 0.0
     interval_s = settings.face_detection_inference_interval_ms / 1000.0
     tracker = create_face_tracker(settings) if detector is not None else None
+    quality_assessor = create_face_quality_assessor(settings) if detector is not None else None
+    aligner = create_face_aligner(settings) if detector is not None else None
     try:
         source.open()
         status = source.get_status()
@@ -124,7 +133,9 @@ def main() -> int:
                 f"YuNet provider={detector.provider} "
                 f"input={detector.config.input_width}x{detector.config.input_height} "
                 f"interval_ms={settings.face_detection_inference_interval_ms} "
-                f"tracking={tracker is not None}"
+                f"tracking={tracker is not None} "
+                f"quality={quality_assessor is not None} "
+                f"alignment={aligner is not None}"
             )
         source.start()
         if display:
@@ -146,8 +157,24 @@ def main() -> int:
             now = time.monotonic()
             if detector is not None and now - last_detect_at >= interval_s:
                 last_faces = detector.detect(frame)
-                if tracker is not None:
-                    last_tracks = tracker.update(last_faces)
+                last_tracks = tracker.update(last_faces) if tracker is not None else []
+                last_qualities = []
+                last_aligned = 0
+                if quality_assessor is not None:
+                    for track in last_tracks:
+                        if track.missed_frames != 0:
+                            continue
+                        quality = quality_assessor.assess(frame, track)
+                        last_qualities.append(quality)
+                        if aligner is not None and quality.accepted:
+                            aligner.align(frame, track)
+                            last_aligned += 1
+                elif aligner is not None:
+                    for track in last_tracks:
+                        if track.missed_frames != 0:
+                            continue
+                        aligner.align(frame, track)
+                        last_aligned += 1
                 last_detect_at = now
                 detected_frames += 1
             elapsed = max(time.perf_counter() - started, 1e-6)
@@ -156,14 +183,15 @@ def main() -> int:
                 import cv2
 
                 if detector is not None and tracker is not None:
-                    image = draw_tracks(frame.data, last_tracks)
+                    image = draw_tracks(frame.data, last_tracks, last_qualities)
                 elif detector is not None:
                     image = draw_detections(frame.data, last_faces)
                 else:
                     image = frame.data
                 overlay = (
                     f"fps={fps:.1f} faces={len(last_faces)} "
-                    f"tracks={len(last_tracks)} {frame.width}x{frame.height}"
+                    f"tracks={len(last_tracks)} aligned={last_aligned} "
+                    f"{frame.width}x{frame.height}"
                 )
                 cv2.putText(
                     image,
@@ -180,9 +208,11 @@ def main() -> int:
                 if key in {ord("q"), ord("Q"), 27}:
                     break
             elif captured % 10 == 0:
+                accepted = sum(1 for item in last_qualities if item.accepted)
                 print(
                     f"frames={captured} fps={fps:.1f} size={frame.width}x{frame.height} "
                     f"faces={len(last_faces)} tracks={len(last_tracks)} "
+                    f"quality_ok={accepted} aligned={last_aligned} "
                     f"ids={[track.track_id for track in last_tracks]}"
                 )
             if args.frames > 0 and captured >= args.frames:
